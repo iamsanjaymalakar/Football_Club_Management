@@ -1,0 +1,63 @@
+public void start(Stage primaryStage) {
+        stage = primaryStage;
+        stage.setWidth(1200);
+        stage.setHeight(600);
+        //stage.setFullScreen(true);
+        loginScreen();
+    }
+
+
+    public static void loginScreen() {
+        AnchorPane mainPane = new AnchorPane();
+        mainPane.setPrefHeight(795);
+        mainPane.setPrefWidth(1089);
+        mainPane.setStyle("-fx-background-color: #ccfbff;");
+        //titlepane
+        AnchorPane titlePane = new AnchorPane();
+        titlePane.setPrefHeight(136);
+        titlePane.setPrefWidth(1089);
+        titlePane.setLayoutX(299);
+        titlePane.setLayoutY(26);
+        titlePane.setStyle("-fx-background-color: #ffffff;");
+        AnchorPane.setTopAnchor(titlePane, 0.0);
+        AnchorPane.setBottomAnchor(titlePane, 659.0);
+        AnchorPane.setLeftAnchor(titlePane, 0.0);
+        AnchorPane.setRightAnchor(titlePane, 0.0);
+        //title text
+        Text title = new Text();
+        title.setText("Football\nClub\n");
+        title.setLayoutX(170);
+        title.setLayoutY(42);
+        Font f = new Font("System Bold", 26);
+        title.setFont(f);
+        //image
+        Image img = new Image("logo.png");
+        ImageView imgv = new ImageView(img);
+        imgv.setFitHeight(70);
+        imgv.setFitWidth(70);
+        imgv.setLayoutX(50);
+        imgv.setLayoutY(20);
+        titlePane.getChildren().addAll(title, imgv);
+        //table
+        createTable();
+        updateTable();
+        //login
+        TextField userName = new TextField();
+        userName.setLayoutX(740);
+        userName.setLayoutY(70);
+        userName.setPrefHeight(25);
+        userName.setPrefWidth(140);
+        userName.setEffect(borderGlow);
+        userName.setPromptText("Username");
+        userName.setText("noah");
+        PasswordField passWord = new PasswordField();
+        passWord.setLayoutX(900);
+        passWord.setLayoutY(70);
+        passWord.setPrefHeight(25);
+        passWord.setPrefWidth(140);
+        passWord.setEffect(borderGlow);
+        passWord.setPromptText("Password");
+        passWord.setText("noah");
+        Button login = new Button("Login");
+        login.setLayoutX(1060);
+        login.setLayoutY(68);
