@@ -3,6 +3,7 @@ package sample;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.event.EventHandler;
+import javafx.scene.layout.VBox;
 import resources.BoardStaff;
 import resources.ManagerStaff;
 import resources.Team;
@@ -65,14 +66,20 @@ public class Main extends Application {
         //
         bsdata = FXCollections.observableArrayList();
         boardMemberSceneFlag = 0;
+        //
+        try {
+            con = DriverManager.getConnection("jdbc:oracle:thin:@localhost:1521:globaldb", "clubmanagement", "football");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void start(Stage primaryStage) {
         stage = primaryStage;
-        stage.setWidth(1550);
-        stage.setHeight(830);
-        loginScreen();
+        //stage.setWidth(1550);
+        //stage.setHeight(830);
+        playerPage(3);
     }
 
 
@@ -133,22 +140,24 @@ public class Main extends Application {
         login.setOnMouseClicked((MouseEvent event) -> {
             String user = userName.getText();
             String pass = passWord.getText();
-            int count = 0, mid = 0;
-            String manager;
+            int count = 0, id = 0;
+            String userType;
             String sql = "SELECT COUNT(*), TYPE, ID FROM USERS WHERE USERNAME = '" + user + "' and PASSWORD='" + pass + "' GROUP BY TYPE,ID";
-            //System.out.println(sql);
             try {
                 pst = con.prepareStatement(sql);
                 rs = pst.executeQuery();
                 while (rs.next()) {
                     count = rs.getInt(1);
-                    manager = rs.getString(2);
-                    mid = rs.getInt(3);
+                    userType = rs.getString(2);
+                    id = rs.getInt(3);
                     if (count > 0) {
-                        if (manager.equals("Manager")) {
-                            managerPage(mid);
-                        } else if (manager.equals("Board Member")) {
-                            boardMemberPage(mid);
+                        if (userType.equals("Manager")) {
+                            managerPage(id);
+                        } else if (userType.equals("Board Member")) {
+                            boardMemberPage(id);
+                        } else if (userType.equals("Player")) // new
+                        {
+                            playerPage(id);
                         }
                     }
                 }
@@ -170,6 +179,263 @@ public class Main extends Application {
             System.exit(0);
         });
     }
+
+    //new
+    public static void playerPage(int pid) {
+        VBox box = new VBox();
+        box.setPrefHeight(720);
+        box.setPrefWidth(1300);
+        box.setStyle("-fx-background-color: white");
+        box.getStylesheets().add(Main.class.getResource("table.css").toExternalForm());
+        AnchorPane topPane = new AnchorPane();
+        topPane.setPrefHeight(125);
+        topPane.setPrefWidth(1300);
+        topPane.setStyle("-fx-background-color: white");
+        Image logoImage = new Image("logo.png");
+        ImageView logo = new ImageView(logoImage);
+        logo.setFitWidth(125);
+        logo.setFitHeight(126);
+        logo.setPickOnBounds(true);
+        logo.setPreserveRatio(true);
+        Text title = new Text("Clubname");
+        title.setLayoutX(143);
+        title.setLayoutY(83);
+        title.setFont(new Font(51));
+        Image pimg = new Image("playericon.png");
+        ImageView playerIcon = new ImageView(pimg);
+        playerIcon.setFitHeight(138);
+        playerIcon.setFitWidth(200);
+        playerIcon.setLayoutX(957);
+        playerIcon.setPickOnBounds(true);
+        playerIcon.setPreserveRatio(true);
+        //sql to get the player name
+        String name = "";
+        String sql = "select PLAYER_NAME from PLAYERS where PLAYER_ID=" + pid;
+        try {
+            pst = con.prepareStatement(sql);
+            rs = pst.executeQuery();
+            while (rs.next()) {
+                name = rs.getString(1);
+            }
+        } catch (SQLException e) {
+            errorAlert("Error", "Error", null);
+        }
+        Text playerName = new Text(name);
+        playerName.setLayoutX(1095);
+        playerName.setLayoutY(64);
+        playerName.setFont(new Font("System Bold", 21));
+        Text logout = new Text("(Logout)");
+        logout.setLayoutX(1209);
+        logout.setLayoutY(94);
+        logout.setFont(new Font("System Bold Italic", 17));
+        logout.setOnMouseEntered((MouseEvent event) -> {
+            logout.setFont(new Font("System Bold Italic", 20));
+            logout.setFill(Color.DARKGRAY);
+        });
+        logout.setOnMouseExited((MouseEvent event) -> {
+            logout.setFont(new Font("System Bold Italic", 17));
+            logout.setFill(Color.BLACK);
+        });
+        logout.setOnMouseClicked((MouseEvent event) -> {
+            loginScreen();
+        });
+        topPane.getChildren().addAll(logo, title, playerIcon, playerName, logout);
+        TabPane tabs = new TabPane();
+        tabs.setPrefHeight(634);
+        tabs.setPrefWidth(1300);
+        tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        Tab homeTab = new Tab();
+        homeTab.setText("Home");
+        AnchorPane homePane = new AnchorPane();
+        homePane.setPrefHeight(180);
+        homePane.setPrefWidth(200);
+        homePane.setStyle("-fx-background-color: #ccfbff");
+        //sql
+        String nationality = "", position = "", contract = "";
+        sql = "select NATIONALITY,POSITION,(trunc(SYSDATE)-trunc(CONTACT_TILL)) Time from PLAYERS where PLAYER_ID=" + pid;
+        try {
+            pst = con.prepareStatement(sql);
+            rs = pst.executeQuery();
+            while (rs.next()) {
+                nationality = rs.getString(1);
+                position = rs.getString(2);
+                contract = rs.getString(3);
+            }
+        } catch (SQLException e) {
+            errorAlert("Error", "Error", null);
+        }
+        Text nameText = new Text(name);
+        nameText.setLayoutX(540);
+        nameText.setLayoutY(62);
+        nameText.setFont(new Font("System Bold", 35));
+        Text natpos = new Text(nationality + "    -    " + position);
+        natpos.setLayoutX(528);
+        natpos.setLayoutY(107);
+        natpos.setFont(new Font(26));
+        Text contactEx = new Text("Contact expires in : " + contract + " days");
+        contactEx.setLayoutX(983);
+        contactEx.setLayoutY(79);
+        contactEx.setFont(new Font(23));
+        //sql
+        int cnt = 0, sgoals = 0, sfouls = 0, smp = 0;
+        double avgrating = 0;
+        sql = "select count(*),SUM(GOALS),SUM(FOULS),SUM(MINUTES_PLAYED),AVG(RATING) from PLAYER_MATCH where PLAYER_ID=" + pid;
+        try {
+            pst = con.prepareStatement(sql);
+            rs = pst.executeQuery();
+            while (rs.next()) {
+                cnt = rs.getInt(1);
+                sgoals = rs.getInt(2);
+                sfouls = rs.getInt(3);
+                smp = rs.getInt(4);
+                avgrating = rs.getDouble(5);
+            }
+        } catch (SQLException e) {
+            errorAlert("Error", "Error", null);
+        }
+        Text tmp = new Text("Total Matches Played : ");
+        tmp.setLayoutX(69);
+        tmp.setLayoutY(221);
+        tmp.setFont(new Font(25));
+        Text tmpc = new Text(String.valueOf(cnt));
+        tmpc.setLayoutX(333);
+        tmpc.setLayoutY(224);
+        tmpc.setFont(new Font("System Bold", 33));
+        Text tgs = new Text("Total Goals Scored     : ");
+        tgs.setLayoutX(69);
+        tgs.setLayoutY(271);
+        tgs.setFont(new Font(25));
+        Text tgsc = new Text(String.valueOf(sgoals));
+        tgsc.setLayoutX(333);
+        tgsc.setLayoutY(274);
+        tgsc.setFont(new Font("System Bold", 33));
+        Text gpg = new Text("Goals Per Game");
+        gpg.setLayoutX(619);
+        gpg.setLayoutY(265);
+        gpg.setFont(new Font(26));
+        double temp = (double) sgoals / (double) cnt;
+        temp = temp * 10;
+        temp = Math.round(temp);
+        temp = temp / 10;
+        Text gpgc = new Text(String.valueOf(temp));
+        gpgc.setLayoutX(553);
+        gpgc.setLayoutY(269);
+        gpgc.setFont(new Font("System Bold", 41));
+        Text gpm = new Text("Minutes Per Goal");
+        gpm.setLayoutX(619);
+        gpm.setLayoutY(321);
+        gpm.setFont(new Font(26));
+        temp = (double) smp / (double) sgoals;
+        temp = temp * 10;
+        temp = Math.round(temp);
+        temp = temp / 10;
+        Text gpmc = new Text(String.valueOf(temp));
+        gpmc.setLayoutX(535);
+        gpmc.setLayoutY(326);
+        gpmc.setFont(new Font("System Bold", 41));
+        Text tf = new Text("Total Fouls                 : ");
+        tf.setLayoutX(69);
+        tf.setLayoutY(324);
+        tf.setFont(new Font(25));
+        Text tfc = new Text(String.valueOf(sfouls));
+        tfc.setLayoutX(333);
+        tfc.setLayoutY(328);
+        tfc.setFont(new Font("System Bold", 33));
+        Text tminp = new Text("Total Minutes Played : ");
+        tminp.setLayoutX(69);
+        tminp.setLayoutY(374);
+        tminp.setFont(new Font(25));
+        Text tminpc = new Text(String.valueOf(smp));
+        tminpc.setLayoutX(333);
+        tminpc.setLayoutY(377);
+        tminpc.setFont(new Font("System Bold", 33));
+        ProgressIndicator pi = new ProgressIndicator(avgrating / 10);
+        pi.setLayoutX(966);
+        pi.setLayoutY(174);
+        pi.setPrefHeight(193);
+        pi.setPrefWidth(279);
+        Text ar = new Text("Averege Rating :");
+        ar.setLayoutX(990);
+        ar.setLayoutY(404);
+        ar.setFont(new Font(25));
+        Text arc = new Text(String.valueOf(avgrating));
+        arc.setLayoutX(1188);
+        arc.setLayoutY(410);
+        arc.setFont(new Font("System Bold", 41));
+        homePane.getChildren().addAll(nameText, natpos, contactEx, tmp, tmpc, tgs, tgsc, gpg, gpgc, tf, tfc, tminp, tminpc, pi, ar, arc, gpm, gpmc);
+        homeTab.setContent(homePane);
+        Tab profileTab = new Tab();
+        profileTab.setText("Profile");
+        AnchorPane profilePane = new AnchorPane();
+        profilePane.setPrefHeight(180);
+        profilePane.setPrefWidth(200);
+        profilePane.setStyle("-fx-background-color: #ccfbff");
+        //sql
+        sql = "select TO_CHAR(DATE_OF_BIRTH,'dd-MON-yyyy'),HEIGHT,WEIGHT,CONTACT_NO,WAGE,MARKET_VALUE,BUY_OUT_CLAUSE,AGENT_NAME,TO_CHAR(CONTACT_TILL,'dd-MON-yyyy') from PLAYERS where PLAYER_ID=" + pid;
+        String dob = "", height = "", weight = "", contact = "", wage = "", mv = "", boc = "",agent="",contracttill="",jdate="";
+        try {
+            pst = con.prepareStatement(sql);
+            rs = pst.executeQuery();
+            while (rs.next()) {
+                dob=rs.getString(1);
+                height=rs.getString(2);
+                weight=rs.getString(3);
+                contact=rs.getString(4);
+                wage=rs.getString(5);
+                mv=rs.getString(6);
+                boc=rs.getString(7);
+                agent=rs.getString(8);
+                contracttill=rs.getString(9);
+            }
+        } catch (SQLException e) {
+            errorAlert("Error", "Error", null);
+        }
+        sql = "SELECT jdate from PLAYER_TEAM where PLAYER_ID=" + pid;
+        try {
+            pst = con.prepareStatement(sql);
+            rs = pst.executeQuery();
+            while (rs.next()) {
+                jdate=rs.getString(1);
+            }
+        } catch (SQLException e) {
+            errorAlert("Errorr", "Errorr", null);
+        }
+
+        profileTab.setContent(profilePane);
+        Tab statsTab = new Tab();
+        statsTab.setText("Stats");
+        AnchorPane statsPane = new AnchorPane();
+        statsPane.setPrefHeight(180);
+        statsPane.setPrefWidth(200);
+        statsPane.setStyle("-fx-background-color: #ccfbff");
+        statsTab.setContent(statsPane);
+        Tab teamTab = new Tab();
+        teamTab.setText("Team");
+        AnchorPane teamPane = new AnchorPane();
+        teamPane.setPrefHeight(180);
+        teamPane.setPrefWidth(200);
+        teamPane.setStyle("-fx-background-color: #ccfbff");
+        teamTab.setContent(teamPane);
+        Tab editTab = new Tab();
+        editTab.setText("Edit Profile");
+        AnchorPane editPane = new AnchorPane();
+        editPane.setPrefHeight(180);
+        editPane.setPrefWidth(200);
+        editPane.setStyle("-fx-background-color: #ccfbff");
+        editTab.setContent(editPane);
+        tabs.getTabs().addAll(homeTab, profileTab, statsTab, teamTab, editTab);
+        box.getChildren().addAll(topPane, tabs);
+        Scene scene = new Scene(box);
+        stage.setScene(scene);
+        stage.setTitle(name);
+        stage.show();
+        stage.getIcons().add(new Image("icon.png"));
+        stage.setOnCloseRequest((WindowEvent t) -> {
+            Platform.exit();
+            System.exit(0);
+        });
+    }
+    //new
 
     public static void managerPage(int mid) {
         AnchorPane mainPane = new AnchorPane();
@@ -668,7 +934,7 @@ public class Main extends Application {
                 }
         );
         if (boardMemberSceneFlag == 1) {
-            sql.set("SELECT STAFF_NAME FROM STAFFS WHERE STAFF_ID= (SELECT STAFF_ID FROM BOARD_MEMBERS WHERE BMEMBER_ID=" + id +")");
+            sql.set("SELECT STAFF_NAME FROM STAFFS WHERE STAFF_ID= (SELECT STAFF_ID FROM BOARD_MEMBERS WHERE BMEMBER_ID=" + id + ")");
             String Name = "";
             try {
                 pst = con.prepareStatement(sql.get());
@@ -679,7 +945,7 @@ public class Main extends Application {
             } catch (SQLException e) {
                 e.printStackTrace();
             }
-            sql.set("SELECT STAFF_ADDRESS,CONTACT_NO FROM STAFFS WHERE STAFF_ID= (SELECT STAFF_ID FROM BOARD_MEMBERS WHERE BMEMBER_ID="+id+")");
+            sql.set("SELECT STAFF_ADDRESS,CONTACT_NO FROM STAFFS WHERE STAFF_ID= (SELECT STAFF_ID FROM BOARD_MEMBERS WHERE BMEMBER_ID=" + id + ")");
             String Address = "";
             int Contact = 0;
             try {
@@ -737,7 +1003,7 @@ public class Main extends Application {
                     tempAddress = addressField.getText();
                     try {
                         tempContact = Integer.parseInt(contactField.getText());
-                        String query = "UPDATE STAFFS SET STAFF_NAME = '" + tempName + "', STAFF_ADDRESS='" + tempAddress + "', CONTACT_NO = " + tempContact + "  WHERE STAFF_ID = (SELECT STAFF_ID FROM BOARD_MEMBERS WHERE BMEMBER_ID="+id+")";
+                        String query = "UPDATE STAFFS SET STAFF_NAME = '" + tempName + "', STAFF_ADDRESS='" + tempAddress + "', CONTACT_NO = " + tempContact + "  WHERE STAFF_ID = (SELECT STAFF_ID FROM BOARD_MEMBERS WHERE BMEMBER_ID=" + id + ")";
                         System.out.println(query);
                         try {
                             pst = con.prepareStatement(query);
