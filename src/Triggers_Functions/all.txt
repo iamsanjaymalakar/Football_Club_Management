@@ -1,0 +1,26 @@
+
+
+CREATE OR REPLACE function wol (res in VARCHAR2)
+return varchar2 is
+begin
+if SUBSTR(res,1,1)>SUBSTR(res,3,1) then
+return 'WIN';
+ELSIF SUBSTR(res,1,1)=SUBSTR(res,3,1) then
+return 'DRAW';
+ELSE
+return 'LOSS';
+END IF;
+end;
+
+
+
+create or replace TRIGGER Player_Update
+BEFORE UPDATE
+OF PLAYER_NAME,AGENT_NAME
+ON PLAYERS
+FOR EACH ROW
+DECLARE
+BEGIN
+:NEW.PLAYER_NAME := INITCAP(:NEW.PLAYER_NAME) ;
+:NEW.AGENT_NAME := INITCAP(:NEW.AGENT_NAME) ;
+END ;
