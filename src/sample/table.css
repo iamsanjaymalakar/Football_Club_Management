@@ -15,7 +15,7 @@
 .table-view .column-header-background .label{
     -fx-background-color: transparent;
     -fx-text-fill: white;
-	-fx-font-size: 16;
+	-fx-font-size: 14;
 	-fx-font-weight : bold;
 }
 
@@ -25,7 +25,7 @@
 
 .table-view .table-cell{
     -fx-text-fill: black;
-	-fx-font-size: 15;
+	-fx-font-size: 13;
 	-fx-table-cell-border-color:#99d6ff;
 }
 

@@ -3,9 +3,13 @@ package sample;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.event.EventHandler;
+import javafx.scene.chart.LineChart;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.XYChart;
 import javafx.scene.layout.VBox;
 import resources.BoardStaff;
 import resources.ManagerStaff;
+import resources.PlayerStat;
 import resources.Team;
 
 import javafx.application.Application;
@@ -183,7 +187,7 @@ public class Main extends Application {
     //new
     public static void playerPage(int pid) {
         VBox box = new VBox();
-        box.setPrefHeight(720);
+        box.setPrefHeight(750);
         box.setPrefWidth(1300);
         box.setStyle("-fx-background-color: white");
         box.getStylesheets().add(Main.class.getResource("table.css").toExternalForm());
@@ -372,35 +376,83 @@ public class Main extends Application {
         profilePane.setStyle("-fx-background-color: #ccfbff");
         //sql
         sql = "select TO_CHAR(DATE_OF_BIRTH,'dd-MON-yyyy'),HEIGHT,WEIGHT,CONTACT_NO,WAGE,MARKET_VALUE,BUY_OUT_CLAUSE,AGENT_NAME,TO_CHAR(CONTACT_TILL,'dd-MON-yyyy') from PLAYERS where PLAYER_ID=" + pid;
-        String dob = "", height = "", weight = "", contact = "", wage = "", mv = "", boc = "",agent="",contracttill="",jdate="";
+        String dob = "", height = "", weight = "", contact = "", wage = "", mv = "", boc = "", agent = "", contracttill = "", jdate = "";
         try {
             pst = con.prepareStatement(sql);
             rs = pst.executeQuery();
             while (rs.next()) {
-                dob=rs.getString(1);
-                height=rs.getString(2);
-                weight=rs.getString(3);
-                contact=rs.getString(4);
-                wage=rs.getString(5);
-                mv=rs.getString(6);
-                boc=rs.getString(7);
-                agent=rs.getString(8);
-                contracttill=rs.getString(9);
+                dob = rs.getString(1);
+                height = rs.getString(2);
+                weight = rs.getString(3);
+                contact = rs.getString(4);
+                wage = rs.getString(5);
+                mv = rs.getString(6);
+                boc = rs.getString(7);
+                agent = rs.getString(8);
+                contracttill = rs.getString(9);
             }
         } catch (SQLException e) {
             errorAlert("Error", "Error", null);
         }
-        sql = "SELECT jdate from PLAYER_TEAM where PLAYER_ID=" + pid;
+        sql = "SELECT TO_CHAR(jdate,'dd-MON-yyyy') from PLAYER_TEAM where PLAYER_ID=" + pid;
         try {
             pst = con.prepareStatement(sql);
             rs = pst.executeQuery();
             while (rs.next()) {
-                jdate=rs.getString(1);
+                jdate = rs.getString(1);
             }
         } catch (SQLException e) {
             errorAlert("Errorr", "Errorr", null);
         }
-
+        Text t1 = new Text(name);
+        t1.setLayoutX(545);
+        t1.setLayoutY(49);
+        t1.setFont(new Font("System Bold", 35));
+        Text t2 = new Text(nationality + "    -    " + position);
+        t2.setLayoutX(533);
+        t2.setLayoutY(99);
+        t2.setFont(new Font(26));
+        Text t3 = new Text("Date of birth : " + dob);
+        t3.setLayoutX(106);
+        t3.setLayoutY(177);
+        t3.setFont(new Font(26));
+        Text t4 = new Text("Height           : " + height + " cm");
+        t4.setLayoutX(106);
+        t4.setLayoutY(224);
+        t4.setFont(new Font(26));
+        Text t5 = new Text("Contact no    : " + contact);
+        t5.setLayoutX(106);
+        t5.setLayoutY(314);
+        t5.setFont(new Font(26));
+        Text t6 = new Text("Weight          : " + weight + " kg");
+        t6.setLayoutX(106);
+        t6.setLayoutY(269);
+        t6.setFont(new Font(26));
+        Text t7 = new Text("Wage             : " + wage + " $");
+        t7.setLayoutX(106);
+        t7.setLayoutY(359);
+        t7.setFont(new Font(26));
+        Text t8 = new Text("Market Value : " + mv + " $");
+        t8.setLayoutX(106);
+        t8.setLayoutY(404);
+        t8.setFont(new Font(26));
+        Text t9 = new Text("Buyout Clause: " + boc + " $");
+        t9.setLayoutX(106);
+        t9.setLayoutY(449);
+        t9.setFont(new Font(26));
+        Text t10 = new Text("Agent Name  : " + agent);
+        t10.setLayoutX(905);
+        t10.setLayoutY(176);
+        t10.setFont(new Font(26));
+        Text t11 = new Text("Joined At       : " + jdate);
+        t11.setLayoutX(905);
+        t11.setLayoutY(222);
+        t11.setFont(new Font(26));
+        Text t12 = new Text("Contract Till   : " + contracttill);
+        t12.setLayoutX(905);
+        t12.setLayoutY(269);
+        t12.setFont(new Font(26));
+        profilePane.getChildren().addAll(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12);
         profileTab.setContent(profilePane);
         Tab statsTab = new Tab();
         statsTab.setText("Stats");
@@ -408,22 +460,156 @@ public class Main extends Application {
         statsPane.setPrefHeight(180);
         statsPane.setPrefWidth(200);
         statsPane.setStyle("-fx-background-color: #ccfbff");
+        ObservableList<PlayerStat> pslist = FXCollections.observableArrayList();
+        //table
+        TableView<PlayerStat> pstable = new TableView<>();
+        pstable.setLayoutX(29);
+        pstable.setLayoutY(26);
+        pstable.setPrefHeight(446);
+        pstable.setPrefWidth(874);
+        pstable.setEditable(false);
+        TableColumn<PlayerStat, String> c1 = new TableColumn("Date");
+        TableColumn<PlayerStat, String> c2 = new TableColumn("Opponent");
+        TableColumn<PlayerStat, String> c3 = new TableColumn("Tournament");
+        TableColumn<PlayerStat, String> c4 = new TableColumn("Stage");
+        TableColumn<PlayerStat, String> c5 = new TableColumn("Score");
+        TableColumn<PlayerStat, String> c6 = new TableColumn("Minutes");
+        TableColumn<PlayerStat, String> c7 = new TableColumn("Goals");
+        TableColumn<PlayerStat, String> c8 = new TableColumn("Fouls");
+        TableColumn<PlayerStat, String> c9 = new TableColumn("Saves");
+        TableColumn<PlayerStat, String> c10 = new TableColumn("Rating");
+        TableColumn<PlayerStat, String> c11 = new TableColumn("Result");
+        c1.setCellValueFactory(new PropertyValueFactory<>("date"));
+        c2.setCellValueFactory(new PropertyValueFactory<>("opponent"));
+        c3.setCellValueFactory(new PropertyValueFactory<>("tournament"));
+        c4.setCellValueFactory(new PropertyValueFactory<>("stage"));
+        c5.setCellValueFactory(new PropertyValueFactory<>("result"));
+        c6.setCellValueFactory(new PropertyValueFactory<>("minutes"));
+        c7.setCellValueFactory(new PropertyValueFactory<>("goals"));
+        c8.setCellValueFactory(new PropertyValueFactory<>("fouls"));
+        c9.setCellValueFactory(new PropertyValueFactory<>("saves"));
+        c10.setCellValueFactory(new PropertyValueFactory<>("rating"));
+        c11.setCellValueFactory(new PropertyValueFactory<>("wdl"));
+        c1.setMinWidth(70);
+        c2.setMinWidth(100);
+        c3.setMinWidth(120);
+        c4.setMinWidth(60);
+        c5.setMinWidth(70);
+        c6.setMinWidth(80);
+        c7.setMinWidth(70);
+        c8.setMinWidth(63);
+        c9.setMinWidth(60);
+        c10.setMinWidth(60);
+        c11.setMinWidth(70);
+        pstable.getColumns().addAll(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11);
+        XYChart.Series gs = new XYChart.Series();
+        gs.setName("No of goals in match");
+        XYChart.Series rts = new XYChart.Series();
+        rts.setName("Rating in match");
+        //sql
+        int i = 1;
+        sql = "select to_char(m.MATCH_DATE,'dd-MON-YY'),m.OPPONENT,m.TOURNAMENT_NAME,m.STAGE,m.RESULT,pm.MINUTES_PLAYED,pm.GOALS,pm.FOULS,pm.SAVES,pm.RATING,wol(m.RESULT) from PLAYER_MATCH pm,MATCHES m where PLAYER_ID=" + pid + " and pm.MATCH_ID=m.MATCH_ID order by m.MATCH_DATE";
+        try {
+            pst = con.prepareStatement(sql);
+            rs = pst.executeQuery();
+            pslist.clear();
+            while (rs.next()) {
+                pslist.add(new PlayerStat(new SimpleStringProperty(rs.getString(1)), new SimpleStringProperty(rs.getString(2)), new SimpleStringProperty(rs.getString(3)), new SimpleStringProperty(rs.getString(4)), new SimpleStringProperty(rs.getString(5)), new SimpleStringProperty(rs.getString(6)), new SimpleStringProperty(rs.getString(7)), new SimpleStringProperty(rs.getString(8)), new SimpleStringProperty(rs.getString(9)), new SimpleStringProperty(rs.getString(10)), new SimpleStringProperty(rs.getString(11))));
+                gs.getData().add(new XYChart.Data(i, rs.getInt(7)));
+                rts.getData().add(new XYChart.Data(i++, rs.getInt(10)));
+            }
+        } catch (SQLException e) {
+            errorAlert("Error", "Error", null);
+        }
+        pstable.setItems(pslist);
+        //chart
+        NumberAxis xAxis = new NumberAxis("Match", 1, cnt, 1);
+        NumberAxis yAxis = new NumberAxis("Goals", 0, 5, 1);
+        LineChart goalChart = new LineChart(xAxis, yAxis);
+        xAxis = new NumberAxis("Match", 1, cnt, 1);
+        yAxis = new NumberAxis("Rating", 0, 10, 1);
+        LineChart ratingChart = new LineChart(xAxis, yAxis);
+        goalChart.setLayoutX(924);
+        goalChart.setLayoutY(16);
+        goalChart.setPrefHeight(232);
+        goalChart.setPrefWidth(362);
+        ratingChart.setLayoutX(924);
+        ratingChart.setLayoutY(259);
+        ratingChart.setPrefHeight(232);
+        ratingChart.setPrefWidth(362);
+        goalChart.getData().add(gs);
+        ratingChart.getData().add(rts);
+        statsPane.getChildren().addAll(pstable, goalChart, ratingChart);
         statsTab.setContent(statsPane);
-        Tab teamTab = new Tab();
-        teamTab.setText("Team");
-        AnchorPane teamPane = new AnchorPane();
-        teamPane.setPrefHeight(180);
-        teamPane.setPrefWidth(200);
-        teamPane.setStyle("-fx-background-color: #ccfbff");
-        teamTab.setContent(teamPane);
+        //Tab teamTab = new Tab();
+        //teamTab.setText("Team");
+        //AnchorPane teamPane = new AnchorPane();
+        //teamPane.setPrefHeight(180);
+        //teamPane.setPrefWidth(200);
+        //teamPane.setStyle("-fx-background-color: #ccfbff");
+        //teamTab.setContent(teamPane);
         Tab editTab = new Tab();
         editTab.setText("Edit Profile");
         AnchorPane editPane = new AnchorPane();
         editPane.setPrefHeight(180);
         editPane.setPrefWidth(200);
         editPane.setStyle("-fx-background-color: #ccfbff");
+        TextField nameF = new TextField(name);
+        nameF.setLayoutX(83);
+        nameF.setLayoutY(119);
+        nameF.setPrefHeight(30);
+        nameF.setPrefWidth(300);
+        TextField contactF = new TextField(contact);
+        contactF.setLayoutX(83);
+        contactF.setLayoutY(215);
+        contactF.setPrefHeight(30);
+        contactF.setPrefWidth(300);
+        TextField agentF = new TextField(agent);
+        agentF.setLayoutX(83);
+        agentF.setLayoutY(311);
+        agentF.setPrefHeight(30);
+        agentF.setPrefWidth(300);
+        t1 = new Text("Name :");
+        t1.setLayoutX(83);
+        t1.setLayoutY(97);
+        t1.setFont(new Font(28));
+        t2 = new Text("Contact no:");
+        t2.setLayoutX(83);
+        t2.setLayoutY(197);
+        t2.setFont(new Font(28));
+        t3 = new Text("Agent name:");
+        t3.setLayoutX(83);
+        t3.setLayoutY(293);
+        t3.setFont(new Font(28));
+        Button sub = new Button("Submit");
+        sub.setLayoutX(310);
+        sub.setLayoutY(380);
+        sub.setOnMouseClicked((MouseEvent event) -> {
+            String tname, tcon, tag;
+            tname = nameF.getText();
+            tcon = contactF.getText();
+            tag = agentF.getText();
+            boolean nameA = isAlpha(tname);
+            boolean conN = tcon.chars().allMatch(Character::isDigit);
+            boolean agentA = isAlpha(tag);
+            if (nameA && conN && agentA) {
+                //sql
+                String usql = "update players set player_name='" + tname + "' , contact_no=" + tcon + ",agent_name='" + tag + "' where player_id=" + pid;
+                try {
+                    pst = con.prepareStatement(usql);
+                    rs = pst.executeQuery();
+                    errorAlert("Success","Profile updated successfully",null);
+                    playerPage(pid);
+                } catch (SQLException e) {
+                    errorAlert("Error", "Invalid Input", "Invalid input");
+                }
+            } else {
+                errorAlert("Error", "Invalid Input", "Invalid input");
+            }
+        });
+        editPane.getChildren().addAll(nameF, contactF, agentF, t1, t2, t3, sub);
         editTab.setContent(editPane);
-        tabs.getTabs().addAll(homeTab, profileTab, statsTab, teamTab, editTab);
+        tabs.getTabs().addAll(homeTab, profileTab, statsTab, editTab);
         box.getChildren().addAll(topPane, tabs);
         Scene scene = new Scene(box);
         stage.setScene(scene);
@@ -1117,5 +1303,17 @@ public class Main extends Application {
             Platform.exit();
             System.exit(0);
         });
+    }
+
+    public static boolean isAlpha(String name) {
+        char[] chars = name.toCharArray();
+        for (char c : chars) {
+            if (!Character.isLetter(c)) {
+                if (c == ' ' || c == '.')
+                    continue;
+                return false;
+            }
+        }
+        return true;
     }
 }
