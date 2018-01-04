@@ -159,9 +159,10 @@ public class Main extends Application {
                             managerPage(id);
                         } else if (userType.equals("Board Member")) {
                             boardMemberPage(id);
-                        } else if (userType.equals("Player")) // new
-                        {
+                        } else if (userType.equals("Player")) {
                             playerPage(id);
+                        } else if (userType.equals("Scout")) {
+                            scoutPage(id);
                         }
                     }
                 }
@@ -185,6 +186,177 @@ public class Main extends Application {
     }
 
     //new
+
+
+    public static void scoutPage(int sid) {
+        String name = "", address = "", contact = "", jdate = "", edate = "", salary = "", report = "", team = "", manager = "", region = "";
+        int mid = 1;
+        //sql
+        String sql = "select t.TEAM_NAME,t.MANAGER_ID,sf.STAFF_NAME,sf.STAFF_ADDRESS,sf.CONTACT_NO,to_char(sf.SDATE,'DD-MON-YYYY'),to_char(sf.EDATE,'DD-MON-YYYY'),sf.SALARY,abs(trunc(sc.REPORTING_DATE)-trunc(SYSDATE)),sc.SCOUTING_REGION,sc.staff_id from staffs sf,scouts sc,TEAMS t where sc.STAFF_ID=sf.STAFF_ID and sc.scouts_id=" + sid + " and t.SCOUT_ID=" + sid;
+        try {
+            pst = con.prepareStatement(sql);
+            rs = pst.executeQuery();
+            while (rs.next()) {
+                team = rs.getString(1);
+                mid = rs.getInt(2);
+                name = rs.getString(3);
+                address = rs.getString(4);
+                contact = rs.getString(5);
+                jdate = rs.getString(6);
+                edate = rs.getString(7);
+                salary = rs.getString(8);
+                report = rs.getString(9);
+                region = rs.getString(10);
+            }
+        } catch (SQLException e) {
+            errorAlert("Error", "Error", null);
+        }
+        sql = "select s.STAFF_NAME from staffs s, managers m where s.STAFF_ID=m.STAFF_ID and m.MANAGER_ID=" + mid;
+        try {
+            pst = con.prepareStatement(sql);
+            rs = pst.executeQuery();
+            while (rs.next()) {
+                manager = rs.getString(1);
+            }
+        } catch (SQLException e) {
+            errorAlert("Error", "Error", "Error");
+        }
+        //
+        VBox box = new VBox();
+        box.setPrefHeight(750);
+        box.setPrefWidth(1300);
+        box.setStyle("-fx-background-color: white");
+        box.getStylesheets().add(Main.class.getResource("table.css").toExternalForm());
+        AnchorPane topPane = new AnchorPane();
+        topPane.setPrefHeight(125);
+        topPane.setPrefWidth(1300);
+        topPane.setStyle("-fx-background-color: white");
+        Image logoImage = new Image("logo.png");
+        ImageView logo = new ImageView(logoImage);
+        logo.setFitWidth(125);
+        logo.setFitHeight(126);
+        logo.setPickOnBounds(true);
+        logo.setPreserveRatio(true);
+        Text title = new Text("Clubname");
+        title.setLayoutX(143);
+        title.setLayoutY(83);
+        title.setFont(new Font(51));
+        Image pimg = new Image("scouticon.png");
+        ImageView scoutIcon = new ImageView(pimg);
+        scoutIcon.setFitHeight(138);
+        scoutIcon.setFitWidth(200);
+        scoutIcon.setLayoutX(945);
+        scoutIcon.setLayoutY(15);
+        scoutIcon.setPickOnBounds(true);
+        scoutIcon.setPreserveRatio(true);
+        //sql to get the player name
+        Text scoutName = new Text(name);
+        scoutName.setLayoutX(1095);
+        scoutName.setLayoutY(64);
+        scoutName.setFont(new Font("System Bold", 21));
+        Text logout = new Text("(Logout)");
+        logout.setLayoutX(1209);
+        logout.setLayoutY(94);
+        logout.setFont(new Font("System Bold Italic", 17));
+        logout.setOnMouseEntered((MouseEvent event) -> {
+            logout.setFont(new Font("System Bold Italic", 20));
+            logout.setFill(Color.DARKGRAY);
+        });
+        logout.setOnMouseExited((MouseEvent event) -> {
+            logout.setFont(new Font("System Bold Italic", 17));
+            logout.setFill(Color.BLACK);
+        });
+        logout.setOnMouseClicked((MouseEvent event) -> {
+            loginScreen();
+        });
+        topPane.getChildren().addAll(logo, title, scoutIcon, scoutName, logout);
+        TabPane tabs = new TabPane();
+        tabs.setPrefHeight(634);
+        tabs.setPrefWidth(1300);
+        tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        Tab homeTab = new Tab();
+        homeTab.setText("Home");
+        AnchorPane homePane = new AnchorPane();
+        homePane.setPrefHeight(180);
+        homePane.setPrefWidth(200);
+        homePane.setStyle("-fx-background-color: #ccfbff");
+        Text t1 = textCreator(name, 546, 72, "System Bold", 41);
+        Text t2 = textCreator("Reporting in " + report + " days", 877, 150, 33);
+        Text t3 = textCreator("Team  : " + team, 877, 219, 33);
+        Text t4 = textCreator("Under : " + manager, 877, 289, 33);
+        Text t5 = textCreator("Name           : " + name, 94, 151, 33);
+        Text t6 = textCreator("Contact no   : " + contact, 94, 267, 33);
+        Text t7 = textCreator("Address        : " + address, 94, 210, 33);
+        Text t8 = textCreator("Joining date : " + jdate, 94, 327, 33);
+        Text t9 = textCreator("Contract till  : " + edate, 94, 385, 33);
+        Text t10 = textCreator("Salary           : " + salary + "$", 94, 440, 33);
+        Text t11 = textCreator("Region  : " + region, 877, 350, 33);
+        homePane.getChildren().addAll(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11);
+        homeTab.setContent(homePane);
+        Tab editTab = new Tab();
+        editTab.setText("Edit Profile");
+        AnchorPane editPane = new AnchorPane();
+        editPane.setPrefHeight(180);
+        editPane.setPrefWidth(200);
+        editPane.setStyle("-fx-background-color: #ccfbff");
+        TextField nameF = textfieldCreator(name, 83, 119, 30, 300);
+        TextField addF = textfieldCreator(address, 83, 215, 30, 300);
+        TextField contactF = textfieldCreator(contact, 83, 311, 30, 300);
+        t1 = textCreator("Name : ", 83, 97, 28);
+        t2 = textCreator("Address : ", 83, 197, 28);
+        t3 = textCreator("Contact no :", 83, 293, 28);
+        Button sub = new Button("Submit");
+        sub.setLayoutX(310);
+        sub.setLayoutY(380);
+        sub.setOnMouseClicked((MouseEvent event) -> {
+            String tname, tcon, tadd;
+            tname = nameF.getText();
+            tadd = addF.getText();
+            tcon = contactF.getText();
+            boolean nameA = isAlpha(tname);
+            boolean conN = tcon.chars().allMatch(Character::isDigit);
+            if (nameA && conN) {
+                String ssql = "select STAFF_ID from SCOUTS where SCOUTS_ID=" + sid, stid = "";
+                try {
+                    pst = con.prepareStatement(ssql);
+                    rs = pst.executeQuery();
+                    while (rs.next()) {
+                        stid = rs.getString(1);
+                    }
+                } catch (SQLException e) {
+                    errorAlert("Error", "Error", null);
+                    e.printStackTrace();
+                }
+                String usql = "update staffs set staff_name='" + tname + "' , contact_no=" + tcon + ",staff_address='" + tadd + "' where staff_id=" + stid;
+                try {
+                    pst = con.prepareStatement(usql);
+                    rs = pst.executeQuery();
+                    errorAlert("Success", "Profile updated successfully", null);
+                    scoutPage(sid);
+                } catch (SQLException e) {
+                    errorAlert("Error", "Invalid Input", "Invalid input");
+                }
+            } else {
+                errorAlert("Error", "Invalid Input", "Invalid input");
+            }
+        });
+        editPane.getChildren().addAll(nameF, contactF, addF, t1, t2, t3, sub);
+        editTab.setContent(editPane);
+        tabs.getTabs().addAll(homeTab, editTab);
+        box.getChildren().addAll(topPane, tabs);
+        Scene scene = new Scene(box);
+        stage.setScene(scene);
+        stage.setTitle(name);
+        stage.show();
+        stage.getIcons().add(new Image("icon.png"));
+        stage.setOnCloseRequest((WindowEvent t) -> {
+            Platform.exit();
+            System.exit(0);
+        });
+
+    }
+
+
     public static void playerPage(int pid) {
         VBox box = new VBox();
         box.setPrefHeight(750);
@@ -222,6 +394,7 @@ public class Main extends Application {
                 name = rs.getString(1);
             }
         } catch (SQLException e) {
+            e.printStackTrace();
             errorAlert("Error", "Error", null);
         }
         Text playerName = new Text(name);
@@ -256,7 +429,7 @@ public class Main extends Application {
         homePane.setStyle("-fx-background-color: #ccfbff");
         //sql
         String nationality = "", position = "", contract = "";
-        sql = "select NATIONALITY,POSITION,(trunc(SYSDATE)-trunc(CONTACT_TILL)) Time from PLAYERS where PLAYER_ID=" + pid;
+        sql = "select NATIONALITY,POSITION,abs(trunc(SYSDATE)-trunc(CONTACT_TILL)) Time from PLAYERS where PLAYER_ID=" + pid;
         try {
             pst = con.prepareStatement(sql);
             rs = pst.executeQuery();
@@ -317,10 +490,13 @@ public class Main extends Application {
         gpg.setLayoutX(619);
         gpg.setLayoutY(265);
         gpg.setFont(new Font(26));
-        double temp = (double) sgoals / (double) cnt;
-        temp = temp * 10;
-        temp = Math.round(temp);
-        temp = temp / 10;
+        double temp = 0;
+        if (cnt != 0) {
+            temp = (double) sgoals / (double) cnt;
+            temp = temp * 10;
+            temp = Math.round(temp);
+            temp = temp / 10;
+        }
         Text gpgc = new Text(String.valueOf(temp));
         gpgc.setLayoutX(553);
         gpgc.setLayoutY(269);
@@ -329,10 +505,13 @@ public class Main extends Application {
         gpm.setLayoutX(619);
         gpm.setLayoutY(321);
         gpm.setFont(new Font(26));
-        temp = (double) smp / (double) sgoals;
-        temp = temp * 10;
-        temp = Math.round(temp);
-        temp = temp / 10;
+        temp = 0;
+        if (sgoals != 0) {
+            temp = (double) smp / (double) sgoals;
+            temp = temp * 10;
+            temp = Math.round(temp);
+            temp = temp / 10;
+        }
         Text gpmc = new Text(String.valueOf(temp));
         gpmc.setLayoutX(535);
         gpmc.setLayoutY(326);
@@ -598,7 +777,7 @@ public class Main extends Application {
                 try {
                     pst = con.prepareStatement(usql);
                     rs = pst.executeQuery();
-                    errorAlert("Success","Profile updated successfully",null);
+                    errorAlert("Success", "Profile updated successfully", null);
                     playerPage(pid);
                 } catch (SQLException e) {
                     errorAlert("Error", "Invalid Input", "Invalid input");
@@ -1315,5 +1494,30 @@ public class Main extends Application {
             }
         }
         return true;
+    }
+
+    public static Text textCreator(String text, double x, double y, String type, int size) {
+        Text temp = new Text(text);
+        temp.setLayoutX(x);
+        temp.setLayoutY(y);
+        temp.setFont(new Font(type, size));
+        return temp;
+    }
+
+    public static Text textCreator(String text, double x, double y, int size) {
+        Text temp = new Text(text);
+        temp.setLayoutX(x);
+        temp.setLayoutY(y);
+        temp.setFont(new Font(size));
+        return temp;
+    }
+
+    public static TextField textfieldCreator(String name, double x, double y, double h, double w) {
+        TextField temp = new TextField(name);
+        temp.setLayoutX(x);
+        temp.setLayoutY(y);
+        temp.setPrefHeight(h);
+        temp.setPrefWidth(w);
+        return temp;
     }
 }
