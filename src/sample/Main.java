@@ -2,6 +2,8 @@ package sample;
 
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.event.EventHandler;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
@@ -55,6 +57,8 @@ public class Main extends Application {
     public static TableView<BoardStaff> boardStaffTable;
     public static ObservableList<BoardStaff> bsdata;
     public static int boardMemberSceneFlag;
+    //
+    public static TextField tf = textfieldCreator("", 900, 500, 30, 200);
 
     public Main() {
         borderGlow.setOffsetY(0f);
@@ -76,6 +80,8 @@ public class Main extends Application {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+        //
+
     }
 
     @Override
@@ -83,7 +89,7 @@ public class Main extends Application {
         stage = primaryStage;
         //stage.setWidth(1550);
         //stage.setHeight(830);
-        playerPage(3);
+        loginScreen();
     }
 
 
@@ -172,7 +178,7 @@ public class Main extends Application {
                 errorAlert("Invalid Username/Password", "Invalid Username/Password", "Invalid Username/Password");
             }
         });
-        mainPane.getChildren().addAll(titlePane, userName, passWord, login, table);
+        mainPane.getChildren().addAll(titlePane, userName, passWord, login, table, tf);
         mainPane.getStylesheets().add(Main.class.getResource("button.css").toExternalForm());
         Scene scene = new Scene(mainPane);
         stage.setScene(scene);
@@ -1160,10 +1166,28 @@ public class Main extends Application {
                 tableSize++;
                 // System.out.println(rs.getInt("team_id") + " , " + rs.getString(2) + " , " + rs.getString(3) + " , " + rs.getString(4) + " , " + rs.getString(5) + " , " + rs.getString(6));
             }
-            table.setItems(data);
+            //table.setItems(data);
         } catch (SQLException e) {
             e.printStackTrace();
         }
+
+        FilteredList<Team> filter = new FilteredList<>(data, flag -> true);
+        tf.textProperty().addListener((observable, oldValue, newValue) -> {
+            filter.setPredicate(temp -> {
+                if (newValue == null || newValue.isEmpty()) {
+                    return true;
+                }
+                String input = newValue.toLowerCase();
+                if (temp.getCaptain().toLowerCase().contains(input)) {
+                    return true;
+                }
+                return false;
+            });
+        });
+        SortedList<Team> sort = new SortedList<>(filter);
+        sort.comparatorProperty().bind(table.comparatorProperty());
+        table.setItems(sort);
+
     }
 
     public static void createTable() {
@@ -1521,3 +1545,7 @@ public class Main extends Application {
         return temp;
     }
 }
+
+
+//player id 3
+//manager id 1
