@@ -1,5 +1,6 @@
 package sample;
 
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.transformation.FilteredList;
@@ -7,12 +8,10 @@ import javafx.collections.transformation.SortedList;
 import javafx.event.EventHandler;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.layout.VBox;
-import resources.BoardStaff;
-import resources.ManagerStaff;
-import resources.PlayerStat;
-import resources.Team;
+import resources.*;
 
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -35,6 +34,8 @@ import javafx.stage.WindowEvent;
 
 
 import java.sql.*;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.atomic.AtomicReference;
 
 
@@ -57,6 +58,14 @@ public class Main extends Application {
     public static TableView<BoardStaff> boardStaffTable;
     public static ObservableList<BoardStaff> bsdata;
     public static int boardMemberSceneFlag;
+
+    //
+    public static TableView<ComBoard> comBoardTable;
+    public static ObservableList<ComBoard> cbdata;
+    public static int superAdminSceneFlag;
+    //
+    public static TableView<SalaryUpdate> salUpdateTable;
+    public static ObservableList<SalaryUpdate> salUpdatedata;
     //
     public static TextField tf = textfieldCreator("", 900, 500, 30, 200);
 
@@ -73,6 +82,8 @@ public class Main extends Application {
         popup = new Popup();
         //
         bsdata = FXCollections.observableArrayList();
+        cbdata = FXCollections.observableArrayList();
+        salUpdatedata = FXCollections.observableArrayList();
         boardMemberSceneFlag = 0;
         //
         try {
@@ -80,18 +91,13 @@ public class Main extends Application {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        //
-
     }
 
     @Override
     public void start(Stage primaryStage) {
         stage = primaryStage;
-        //stage.setWidth(1550);
-        //stage.setHeight(830);
-        loginScreen();
+        managerPage(1);
     }
-
 
     public static void loginScreen() {
         AnchorPane mainPane = new AnchorPane();
@@ -169,6 +175,14 @@ public class Main extends Application {
                             playerPage(id);
                         } else if (userType.equals("Scout")) {
                             scoutPage(id);
+                        } else if (userType.equals("Board Member")) {
+                            String prs = isStillPresident(id);
+                            System.out.println(prs);
+                            if (prs.matches("YES")) {
+                                superAdminPage(id);
+                            } else {
+                                boardMemberPage(id);
+                            }
                         }
                     }
                 }
@@ -191,7 +205,542 @@ public class Main extends Application {
         });
     }
 
-    //new
+
+    public static void managerPage(int mid) {
+        String sql = "";
+        VBox box = new VBox();
+        box.setPrefHeight(750);
+        box.setPrefWidth(1300);
+        box.setStyle("-fx-background-color: white");
+        box.getStylesheets().add(Main.class.getResource("table.css").toExternalForm());
+        AnchorPane topPane = new AnchorPane();
+        topPane.setPrefHeight(125);
+        topPane.setPrefWidth(1300);
+        topPane.setStyle("-fx-background-color: white");
+        Image logoImage = new Image("logo.png");
+        ImageView logo = new ImageView(logoImage);
+        logo.setFitWidth(125);
+        logo.setFitHeight(126);
+        logo.setPickOnBounds(true);
+        logo.setPreserveRatio(true);
+        Text title = new Text("Clubname");
+        title.setLayoutX(143);
+        title.setLayoutY(83);
+        title.setFont(new Font(51));
+        Image pimg = new Image("managericon.png");
+        ImageView managerIcon = new ImageView(pimg);
+        managerIcon.setFitHeight(138);
+        managerIcon.setFitWidth(200);
+        managerIcon.setLayoutX(950);
+        managerIcon.setLayoutY(20);
+        managerIcon.setPickOnBounds(true);
+        managerIcon.setPreserveRatio(true);
+        //sql to get the player name
+        String name = "Manager Name", address = "", contact = "";
+        //sql
+        String not = "";
+        sql = "select s.staff_name,m.NO_OF_TROPHIES,s.staff_address,s.contact_no from managers m,staffs s where m.STAFF_ID=s.STAFF_ID and m.manager_id =" + mid;
+        try {
+            pst = con.prepareStatement(sql);
+            rs = pst.executeQuery();
+            while (rs.next()) {
+                name = rs.getString(1);
+                not = rs.getString(2);
+                address = rs.getString(3);
+                contact = rs.getString(4);
+            }
+        } catch (SQLException e) {
+            errorAlert("Error", "Error", null);
+        }
+        Text playerName = new Text(name);
+        playerName.setLayoutX(1095);
+        playerName.setLayoutY(64);
+        playerName.setFont(new Font("System Bold", 21));
+        Text logout = new Text("(Logout)");
+        logout.setLayoutX(1209);
+        logout.setLayoutY(94);
+        logout.setFont(new Font("System Bold Italic", 17));
+        logout.setOnMouseEntered((MouseEvent event) -> {
+            logout.setFont(new Font("System Bold Italic", 20));
+            logout.setFill(Color.DARKGRAY);
+        });
+        logout.setOnMouseExited((MouseEvent event) -> {
+            logout.setFont(new Font("System Bold Italic", 17));
+            logout.setFill(Color.BLACK);
+        });
+        logout.setOnMouseClicked((MouseEvent event) -> {
+            loginScreen();
+        });
+        topPane.getChildren().addAll(logo, title, managerIcon, playerName, logout);
+        TabPane tabs = new TabPane();
+        tabs.setPrefHeight(634);
+        tabs.setPrefWidth(1300);
+        tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        Tab homeTab = new Tab();
+        homeTab.setText("Home");
+        AnchorPane homePane = new AnchorPane();
+        homePane.setPrefHeight(180);
+        homePane.setPrefWidth(200);
+        homePane.setStyle("-fx-background-color: #ccfbff");
+        int win = 0, draw = 0, loss = 0;
+        try {
+            CallableStatement csmnt = con.prepareCall("{call managerMatch(?,?,?,?)}");
+            csmnt.registerOutParameter(2, Types.INTEGER);
+            csmnt.registerOutParameter(3, Types.INTEGER);
+            csmnt.registerOutParameter(4, Types.INTEGER);
+            csmnt.setString(1, String.valueOf(mid));
+            csmnt.setInt(2, 0);
+            csmnt.setInt(3, 0);
+            csmnt.setInt(4, 0);
+            csmnt.execute();
+            win = csmnt.getInt(2);
+            draw = csmnt.getInt(3);
+            loss = csmnt.getInt(4);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        double winp = (double) win / (double) (win + loss + draw);
+        winp = winp * 1000;
+        winp = Math.round(winp);
+        winp = winp / 10;
+        double drawp = (double) draw / (double) (win + loss + draw);
+        drawp = drawp * 1000;
+        drawp = Math.round(drawp);
+        drawp = drawp / 10;
+        double lossp = (double) loss / (double) (win + loss + draw);
+        lossp = lossp * 1000;
+        lossp = Math.round(lossp);
+        lossp = lossp / 10;
+        Text text1 = textCreator(name, 510, 62, "System Bold", 37);
+        Text text2 = textCreator("Total matches played : " + String.valueOf(win + loss + draw), 70, 134, 32);
+        Text text3 = textCreator("Won : " + String.valueOf(win), 70, 195, 32);
+        Text text4 = textCreator("Draw : " + String.valueOf(draw), 70, 251, 32);
+        Text text5 = textCreator("Loss : " + String.valueOf(loss), 70, 308, 32);
+        Text text6 = textCreator("Total trophies : " + not, 70, 461, 32);
+        Text text7 = textCreator("Win % : " + String.valueOf(winp), 70, 368, 32);
+        PieChart pc = new PieChart();
+        pc.setLayoutX(580);
+        pc.setLayoutY(70);
+        pc.setPrefHeight(420);
+        pc.setPrefWidth(580);
+        PieChart.Data slice1 = new PieChart.Data("Win (" + String.valueOf(winp) + "%)", win);
+        PieChart.Data slice2 = new PieChart.Data("Draw (" + String.valueOf(drawp) + "%)", draw);
+        PieChart.Data slice3 = new PieChart.Data("Loss (" + String.valueOf(lossp) + "%)", loss);
+        pc.getData().addAll(slice1, slice2, slice3);
+        homePane.getChildren().addAll(pc, text1, text2, text3, text4, text5, text6, text7);
+        homeTab.setContent(homePane);
+        Tab playersTab = new Tab();
+        playersTab.setText("Players");
+        AnchorPane playersPane = new AnchorPane();
+        playersPane.setPrefHeight(180);
+        playersPane.setPrefWidth(200);
+        playersPane.setStyle("-fx-background-color: #ccfbff");
+        TabPane plTab = new TabPane();
+        plTab.setLayoutX(20);
+        plTab.setLayoutY(8);
+        plTab.setPrefHeight(550);
+        plTab.setPrefWidth(1270);
+        plTab.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        Tab info = new Tab("Info");
+        AnchorPane p1 = new AnchorPane();
+        p1.setPrefWidth(811);
+        p1.setPrefHeight(340);
+        ObservableList<ManagerPlayer> list = FXCollections.observableArrayList();
+        //table
+        TableView<ManagerPlayer> tempTable = new TableView<>();
+        tempTable.setLayoutX(7);
+        tempTable.setLayoutY(14);
+        tempTable.setPrefHeight(450);
+        tempTable.setPrefWidth(930);
+        tempTable.setEditable(false);
+        TableColumn<ManagerPlayer, String> c11 = new TableColumn("Name");
+        TableColumn<ManagerPlayer, String> c21 = new TableColumn("Nationality");
+        TableColumn<ManagerPlayer, String> c31 = new TableColumn("Position");
+        TableColumn<ManagerPlayer, String> c41 = new TableColumn("Height");
+        TableColumn<ManagerPlayer, String> c51 = new TableColumn("Weight");
+        TableColumn<ManagerPlayer, String> c61 = new TableColumn("Contact no");
+        TableColumn<ManagerPlayer, String> c71 = new TableColumn("Wage");
+        TableColumn<ManagerPlayer, String> c81 = new TableColumn("Contract Remaining");
+        TableColumn<ManagerPlayer, String> c91 = new TableColumn("Agent");
+        c11.setCellValueFactory(new PropertyValueFactory<>("name"));
+        c21.setCellValueFactory(new PropertyValueFactory<>("nationality"));
+        c31.setCellValueFactory(new PropertyValueFactory<>("position"));
+        c41.setCellValueFactory(new PropertyValueFactory<>("height"));
+        c51.setCellValueFactory(new PropertyValueFactory<>("weight"));
+        c61.setCellValueFactory(new PropertyValueFactory<>("contact"));
+        c71.setCellValueFactory(new PropertyValueFactory<>("wage"));
+        c81.setCellValueFactory(new PropertyValueFactory<>("contract"));
+        c91.setCellValueFactory(new PropertyValueFactory<>("agent"));
+        c11.setMinWidth(120);
+        c21.setMinWidth(130);
+        c31.setMinWidth(80);
+        c41.setMinWidth(80);
+        c51.setMinWidth(80);
+        c61.setMinWidth(120);
+        c71.setMinWidth(100);
+        c81.setMinWidth(87);
+        c91.setMinWidth(130);
+        tempTable.getColumns().addAll(c11, c21, c31, c41, c51, c61, c71, c81, c91);
+        //sql
+        sql = " select p.PLAYER_NAME,p.NATIONALITY,p.POSITION,p.HEIGHT,p.WEIGHT,p.CONTACT_NO,p.WAGE,trunc(p.CONTACT_TILL)-trunc(sysdate),p.AGENT_NAME from players p,player_team pt where p.PLAYER_ID=pt.PLAYER_ID and pt.team_id=(select team_id from managers where manager_id=" + mid + ") order by p.CONTACT_TILL ";
+        try {
+            pst = con.prepareStatement(sql);
+            rs = pst.executeQuery();
+            list.clear();
+            while (rs.next()) {
+                list.add(new ManagerPlayer(new SimpleStringProperty(rs.getString(1)), new SimpleStringProperty(rs.getString(2)), new SimpleStringProperty(rs.getString(3)), new SimpleStringProperty(rs.getString(9)), new SimpleIntegerProperty(rs.getInt(4)), new SimpleIntegerProperty(rs.getInt(5)), new SimpleIntegerProperty(rs.getInt(6)), new SimpleIntegerProperty(rs.getInt(7)), new SimpleIntegerProperty(rs.getInt(8))));
+            }
+        } catch (SQLException e) {
+            errorAlert("Error", "Error", null);
+        }
+        TextField tftemp = textfieldCreator("", 980, 20, 30, 250);
+        tftemp.clear();
+        tftemp.setPromptText("Search table");
+        FilteredList<ManagerPlayer> filter1 = new FilteredList<>(list, flag -> true);
+        tftemp.textProperty().addListener((observable, oldValue, newValue) -> {
+            filter1.setPredicate(temp -> {
+                if (newValue == null || newValue.isEmpty()) {
+                    return true;
+                }
+                String input = newValue.toLowerCase();
+                if (temp.getName().toLowerCase().contains(input)) {
+                    return true;
+                }
+                if (temp.getAgent().toLowerCase().contains(input)) {
+                    return true;
+                }
+                if (temp.getNationality().toLowerCase().contains(input)) {
+                    return true;
+                }
+                if (temp.getPosition().toLowerCase().contains(input)) {
+                    return true;
+                }
+                return false;
+            });
+        });
+        SortedList<ManagerPlayer> sort1 = new SortedList<>(filter1);
+        sort1.comparatorProperty().bind(tempTable.comparatorProperty());
+        tempTable.setItems(sort1);
+        p1.getChildren().addAll(tempTable, tftemp);
+        info.setContent(p1);
+        Tab stat = new Tab("Stats");
+        AnchorPane p2 = new AnchorPane();
+        p2.setPrefWidth(200);
+        p2.setPrefHeight(180);
+        ObservableList<ManagerPlayerStat> list1 = FXCollections.observableArrayList();
+        //table
+        TableView<ManagerPlayerStat> tempTable1 = new TableView<>();
+        tempTable1.setLayoutX(7);
+        tempTable1.setLayoutY(14);
+        tempTable1.setPrefHeight(450);
+        tempTable1.setPrefWidth(922);
+        tempTable1.setEditable(false);
+        TableColumn<ManagerPlayerStat, Integer> c12 = new TableColumn("ID");
+        TableColumn<ManagerPlayerStat, String> c22 = new TableColumn("Name");
+        TableColumn<ManagerPlayerStat, Integer> c32 = new TableColumn("Total matches");
+        TableColumn<ManagerPlayerStat, Integer> c42 = new TableColumn("Totals goals");
+        TableColumn<ManagerPlayerStat, Double> c52 = new TableColumn("Goals per match");
+        TableColumn<ManagerPlayerStat, Integer> c62 = new TableColumn("Total fouls");
+        TableColumn<ManagerPlayerStat, Double> c72 = new TableColumn("Fouls per match");
+        TableColumn<ManagerPlayerStat, Double> c82 = new TableColumn("Averege rating");
+        c12.setCellValueFactory(new PropertyValueFactory<>("id"));
+        c22.setCellValueFactory(new PropertyValueFactory<>("name"));
+        c32.setCellValueFactory(new PropertyValueFactory<>("count"));
+        c42.setCellValueFactory(new PropertyValueFactory<>("sgoals"));
+        c52.setCellValueFactory(new PropertyValueFactory<>("agoals"));
+        c62.setCellValueFactory(new PropertyValueFactory<>("sfouls"));
+        c72.setCellValueFactory(new PropertyValueFactory<>("afouls"));
+        c82.setCellValueFactory(new PropertyValueFactory<>("arating"));
+        c12.setMinWidth(50);
+        c22.setMinWidth(150);
+        c32.setMinWidth(120);
+        c42.setMinWidth(120);
+        c52.setMinWidth(120);
+        c62.setMinWidth(120);
+        c72.setMinWidth(120);
+        c82.setMinWidth(120);
+        tempTable1.getColumns().addAll(c12, c22, c32, c42, c52, c62, c72, c82);
+        //sql
+        sql = "select p.PLAYER_ID,p.PLAYER_NAME,count(*),SUM(pm.GOALS),round(SUM(pm.GOALS)/count(*),2),sum(pm.fouls),round(SUM(pm.fouls)/count(*),2),round(avg(pm.rating),2) from players p,PLAYER_TEAM pt,PLAYER_MATCH pm where  p.PLAYER_ID=pt.PLAYER_ID and pm.PLAYER_ID=p.PLAYER_ID and pt.TEAM_ID=(select team_id from MANAGERS where MANAGER_ID=" + mid + ") group by p.PLAYER_ID,p.PLAYER_NAME order by avg(pm.rating) desc";
+        try {
+            pst = con.prepareStatement(sql);
+            rs = pst.executeQuery();
+            list1.clear();
+            while (rs.next()) {
+                list1.add(new ManagerPlayerStat(new SimpleIntegerProperty(rs.getInt(1)), new SimpleStringProperty(rs.getString(2)), new SimpleIntegerProperty(rs.getInt(3)), new SimpleIntegerProperty(rs.getInt(4)), new SimpleDoubleProperty(rs.getDouble(5)), new SimpleIntegerProperty(rs.getInt(6)), new SimpleDoubleProperty(rs.getDouble(7)), new SimpleDoubleProperty(rs.getDouble(8))));
+            }
+        } catch (SQLException e) {
+            errorAlert("Error", "Error", null);
+            e.printStackTrace();
+        }
+        TextField tftemp1 = textfieldCreator("", 980, 20, 30, 250);
+        tftemp1.clear();
+        tftemp1.setPromptText("Search table");
+        FilteredList<ManagerPlayerStat> filter2 = new FilteredList<>(list1, flag -> true);
+        tftemp1.textProperty().addListener((observable, oldValue, newValue) -> {
+            filter2.setPredicate(temp -> {
+                if (newValue == null || newValue.isEmpty()) {
+                    return true;
+                }
+                String input = newValue.toLowerCase();
+                if (temp.getName().toLowerCase().contains(input)) {
+                    return true;
+                }
+                return false;
+            });
+        });
+        SortedList<ManagerPlayerStat> sort2 = new SortedList<>(filter2);
+        sort2.comparatorProperty().bind(tempTable1.comparatorProperty());
+        tempTable1.setItems(sort2);
+        p2.getChildren().addAll(tempTable1, tftemp1);
+        stat.setContent(p2);
+        plTab.getTabs().addAll(info, stat);
+        playersPane.getChildren().addAll(plTab);
+        playersTab.setContent(playersPane);
+        Tab teamTab = new Tab();
+        teamTab.setText("Team");
+        AnchorPane teamPane = new AnchorPane();
+        teamPane.setPrefHeight(180);
+        teamPane.setPrefWidth(200);
+        teamPane.setStyle("-fx-background-color: #ccfbff");
+        //
+        ObservableList<ManagerTeam> list2 = FXCollections.observableArrayList();
+        TableView<ManagerTeam> tempTable2 = new TableView<>();
+        tempTable2.setLayoutX(31);
+        tempTable2.setLayoutY(45);
+        tempTable2.setPrefHeight(482);
+        tempTable2.setPrefWidth(922);
+        tempTable2.setEditable(false);
+        TableColumn<ManagerTeam, String> c13 = new TableColumn("Match Date");
+        TableColumn<ManagerTeam, String> c23 = new TableColumn("Venue");
+        TableColumn<ManagerTeam, String> c33 = new TableColumn("Opponent");
+        TableColumn<ManagerTeam, String> c43 = new TableColumn("Tournament Name");
+        TableColumn<ManagerTeam, String> c53 = new TableColumn("Stage");
+        TableColumn<ManagerTeam, String> c63 = new TableColumn("Score");
+        TableColumn<ManagerTeam, String> c73 = new TableColumn("Result");
+        c13.setCellValueFactory(new PropertyValueFactory<>("date"));
+        c23.setCellValueFactory(new PropertyValueFactory<>("venue"));
+        c33.setCellValueFactory(new PropertyValueFactory<>("opponent"));
+        c43.setCellValueFactory(new PropertyValueFactory<>("tournament"));
+        c53.setCellValueFactory(new PropertyValueFactory<>("stage"));
+        c63.setCellValueFactory(new PropertyValueFactory<>("result"));
+        c73.setCellValueFactory(new PropertyValueFactory<>("wdl"));
+        c13.setMinWidth(130);
+        c23.setMinWidth(150);
+        c33.setMinWidth(120);
+        c43.setMinWidth(150);
+        c53.setMinWidth(120);
+        c63.setMinWidth(120);
+        c73.setMinWidth(120);
+        tempTable2.getColumns().addAll(c13, c23, c33, c43, c53, c63, c73);
+        //sql
+        sql = "select to_char(m.MATCH_DATE,'DD-MON-YYYY'),m.VENUE,m.OPPONENT,m.TOURNAMENT_NAME,m.STAGE,m.RESULT,wol(m.RESULT) from player_team pt,PLAYER_MATCH pm,matches m where pm.player_id=pt.player_id and pm.match_id=m.match_id and team_id=(select team_id from managers where manager_id=" + mid + ") group by m.MATCH_ID,m.MATCH_DATE,m.VENUE,m.OPPONENT,m.TOURNAMENT_NAME,m.STAGE,m.RESULT order by m.MATCH_DATE";
+        try {
+            pst = con.prepareStatement(sql);
+            rs = pst.executeQuery();
+            list2.clear();
+            while (rs.next()) {
+                list2.add(new ManagerTeam(new SimpleStringProperty(rs.getString(1)), new SimpleStringProperty(rs.getString(2)), new SimpleStringProperty(rs.getString(3)), new SimpleStringProperty(rs.getString(4)), new SimpleStringProperty(rs.getString(5)), new SimpleStringProperty(rs.getString(6)), new SimpleStringProperty(rs.getString(7))));
+            }
+        } catch (SQLException e) {
+            errorAlert("Error", "Error", null);
+            e.printStackTrace();
+        }
+        TextField tftemp2 = textfieldCreator("", 1000, 50, 30, 250);
+        tftemp2.clear();
+        tftemp2.setPromptText("Search table");
+        FilteredList<ManagerTeam> filter3 = new FilteredList<>(list2, flag -> true);
+        tftemp2.textProperty().addListener((observable, oldValue, newValue) -> {
+            filter3.setPredicate(temp -> {
+                if (newValue == null || newValue.isEmpty()) {
+                    return true;
+                }
+                String input = newValue.toLowerCase();
+                if (temp.getDate().toLowerCase().contains(input)) {
+                    return true;
+                }
+                if (temp.getOpponent().toLowerCase().contains(input)) {
+                    return true;
+                }
+                if (temp.getResult().toLowerCase().contains(input)) {
+                    return true;
+                }
+                if (temp.getStage().toLowerCase().contains(input)) {
+                    return true;
+                }
+                if (temp.getTournament().toLowerCase().contains(input)) {
+                    return true;
+                }
+                if (temp.getVenue().toLowerCase().contains(input)) {
+                    return true;
+                }
+                if (temp.getWdl().toLowerCase().contains(input)) {
+                    return true;
+                }
+                return false;
+            });
+        });
+        SortedList<ManagerTeam> sort3 = new SortedList<>(filter3);
+        sort3.comparatorProperty().bind(tempTable2.comparatorProperty());
+        tempTable2.setItems(sort3);
+        teamPane.getChildren().addAll(tempTable2, tftemp2);
+        teamTab.setContent(teamPane);
+        Tab employeeTab = new Tab();
+        employeeTab.setText("Employees");
+        AnchorPane employeePane = new AnchorPane();
+        employeePane.setPrefHeight(180);
+        employeePane.setPrefWidth(200);
+        employeePane.setStyle("-fx-background-color: #ccfbff");
+        ObservableList<ManagerEmployees> melist = FXCollections.observableArrayList();
+        //table
+        TableView<ManagerEmployees> meTable = new TableView<>();
+        meTable.setLayoutX(30);
+        meTable.setLayoutY(30);
+        meTable.setPrefHeight(450);
+        meTable.setPrefWidth(834);
+        meTable.setEditable(false);
+        TableColumn<ManagerEmployees, String> c1 = new TableColumn("Staff ID");
+        TableColumn<ManagerEmployees, String> c2 = new TableColumn("Name");
+        TableColumn<ManagerEmployees, String> c3 = new TableColumn("Address");
+        TableColumn<ManagerEmployees, String> c4 = new TableColumn("Contact no");
+        TableColumn<ManagerEmployees, String> c5 = new TableColumn("Type");
+        TableColumn<ManagerEmployees, String> c6 = new TableColumn("Salary");
+        TableColumn<ManagerEmployees, String> c7 = new TableColumn("Contract Till");
+        TableColumn<ManagerEmployees, String> c8 = new TableColumn("Remaining");
+        c1.setCellValueFactory(new PropertyValueFactory<>("id"));
+        c2.setCellValueFactory(new PropertyValueFactory<>("name"));
+        c3.setCellValueFactory(new PropertyValueFactory<>("address"));
+        c4.setCellValueFactory(new PropertyValueFactory<>("contact"));
+        c5.setCellValueFactory(new PropertyValueFactory<>("type"));
+        c6.setCellValueFactory(new PropertyValueFactory<>("salary"));
+        c7.setCellValueFactory(new PropertyValueFactory<>("edate"));
+        c8.setCellValueFactory(new PropertyValueFactory<>("remaining"));
+        c1.setMinWidth(70);
+        c2.setMinWidth(120);
+        c3.setMinWidth(170);
+        c4.setMinWidth(100);
+        c5.setMinWidth(90);
+        c6.setMinWidth(80);
+        c7.setMinWidth(100);
+        c8.setMinWidth(87);
+        meTable.getColumns().addAll(c1, c2, c3, c4, c5, c6, c7, c8);
+        //sql
+        int i = 1;
+        sql = " SELECT ST.STAFF_ID,ST.STAFF_NAME, ST.STAFF_ADDRESS,ST.CONTACT_NO,ST.TYPE,ST.SALARY,to_char(st.edate,'DD-MON-YYYY'),trunc(st.edate)-trunc(sysdate) FROM SCOUTS SC JOIN STAFFS ST ON (SC.STAFF_ID=ST.STAFF_ID) WHERE TEAM_ID = (SELECT TEAM_ID FROM MANAGERS WHERE MANAGER_ID=" + mid + ") order by st.EDATE ";
+        try {
+            pst = con.prepareStatement(sql);
+            rs = pst.executeQuery();
+            melist.clear();
+            while (rs.next()) {
+                melist.add(new ManagerEmployees(new SimpleStringProperty(rs.getString(1)), new SimpleStringProperty(rs.getString(2)), new SimpleStringProperty(rs.getString(3)), new SimpleStringProperty(rs.getString(4)), new SimpleStringProperty(rs.getString(5)), new SimpleStringProperty(rs.getString(6)), new SimpleStringProperty(rs.getString(7)), new SimpleStringProperty(rs.getString(8))));
+            }
+        } catch (SQLException e) {
+            errorAlert("Error", "Error", null);
+        }
+        sql = "SELECT ST.STAFF_ID,ST.STAFF_NAME, ST.STAFF_ADDRESS,ST.CONTACT_NO,ST.TYPE,ST.SALARY,to_char(st.edate,'DD-MON-YYYY'),trunc(st.edate)-trunc(sysdate) FROM MEDICALS MC,MEDICAL_TEAMS_TEAMS MTT, STAFFS ST WHERE TEAM_ID = (SELECT TEAM_ID FROM MANAGERS WHERE MANAGER_ID=" + mid + ") AND MC.MTEAM_ID = MTT.MTEAM_ID AND MC.STAFF_ID = ST.STAFF_ID order by st.EDATE";
+        try {
+            pst = con.prepareStatement(sql);
+            rs = pst.executeQuery();
+            while (rs.next()) {
+                melist.add(new ManagerEmployees(new SimpleStringProperty(rs.getString(1)), new SimpleStringProperty(rs.getString(2)), new SimpleStringProperty(rs.getString(3)), new SimpleStringProperty(rs.getString(4)), new SimpleStringProperty(rs.getString(5)), new SimpleStringProperty(rs.getString(6)), new SimpleStringProperty(rs.getString(7)), new SimpleStringProperty(rs.getString(8))));
+            }
+        } catch (SQLException e) {
+            errorAlert("Error", "Error", null);
+        }
+        TextField tf = textfieldCreator("", 920, 100, 35, 320);
+        tf.setPromptText("Search table");
+        FilteredList<ManagerEmployees> filter = new FilteredList<>(melist, flag -> true);
+
+        tf.textProperty().addListener((observable, oldValue, newValue) -> {
+            filter.setPredicate(temp -> {
+                if (newValue == null || newValue.isEmpty()) {
+                    return true;
+                }
+                String input = newValue.toLowerCase();
+                if (temp.getName().toLowerCase().contains(input)) {
+                    return true;
+                }
+                if (temp.getAddress().toLowerCase().contains(input)) {
+                    return true;
+                }
+                if (temp.getContact().contains(input)) {
+                    return true;
+                }
+                if (temp.getEdate().toLowerCase().contains(input)) {
+                    return true;
+                }
+                if (temp.getType().toLowerCase().contains(input)) {
+                    return true;
+                }
+                return false;
+            });
+        });
+        SortedList<ManagerEmployees> sort = new SortedList<>(filter);
+        sort.comparatorProperty().bind(meTable.comparatorProperty());
+        meTable.setItems(sort);
+        employeePane.getChildren().addAll(meTable, tf);
+        employeeTab.setContent(employeePane);
+        Tab editTab = new Tab();
+        editTab.setText("Edit Profile");
+        AnchorPane editPane = new AnchorPane();
+        editPane.setPrefHeight(180);
+        editPane.setPrefWidth(200);
+        editPane.setStyle("-fx-background-color: #ccfbff");
+        //
+        TextField nameF = textfieldCreator(name, 83, 119, 30, 300);
+        TextField addF = textfieldCreator(address, 83, 215, 30, 300);
+        TextField contactF = textfieldCreator(contact, 83, 311, 30, 300);
+        Text t1 = textCreator("Name : ", 83, 97, 28);
+        Text t2 = textCreator("Address : ", 83, 197, 28);
+        Text t3 = textCreator("Contact no :", 83, 293, 28);
+        Button sub = new Button("Submit");
+        sub.setLayoutX(310);
+        sub.setLayoutY(380);
+        sub.setOnMouseClicked((MouseEvent event) -> {
+            String tname, tcon, tadd;
+            tname = nameF.getText();
+            tadd = addF.getText();
+            tcon = contactF.getText();
+            boolean nameA = isAlpha(tname);
+            boolean conN = tcon.chars().allMatch(Character::isDigit);
+            if (nameA && conN) {
+                String ssql = "select staff_id from managers where manager_id =" + mid, staffid = "";
+                try {
+                    pst = con.prepareStatement(ssql);
+                    rs = pst.executeQuery();
+                    while (rs.next()) {
+                        staffid = rs.getString(1);
+                    }
+                } catch (SQLException e) {
+                    errorAlert("Error", "Error", null);
+                }
+                String usql = "update staffs set staff_name='" + tname + "' , contact_no=" + tcon + ",staff_address='" + tadd + "' where staff_id=" + staffid;
+                try {
+                    pst = con.prepareStatement(usql);
+                    rs = pst.executeQuery();
+                    errorAlert("Success", "Profile updated successfully", null);
+                    managerPage(mid);
+                } catch (SQLException e) {
+                    errorAlert("Error", "Invalid Input", "Invalid input");
+                }
+            } else {
+                errorAlert("Error", "Invalid Input", "Invalid input");
+            }
+        });
+        editPane.getChildren().addAll(nameF, contactF, addF, t1, t2, t3, sub);
+        editTab.setContent(editPane);
+        tabs.getTabs().addAll(homeTab, playersTab, teamTab, employeeTab, editTab);
+        box.getChildren().addAll(topPane, tabs);
+        Scene scene = new Scene(box);
+        stage.setScene(scene);
+        stage.setTitle(name);
+        stage.show();
+        stage.getIcons().add(new Image("icon.png"));
+        stage.setOnCloseRequest((WindowEvent t) -> {
+            Platform.exit();
+            System.exit(0);
+        });
+    }
 
 
     public static void scoutPage(int sid) {
@@ -792,7 +1341,29 @@ public class Main extends Application {
                 errorAlert("Error", "Invalid Input", "Invalid input");
             }
         });
-        editPane.getChildren().addAll(nameF, contactF, agentF, t1, t2, t3, sub);
+        // shoumik
+        Text wageText = textCreator("Present Wage : ", 800, 120, 30);
+        Text wageAmount = textCreator(wage + "$", 1000, 120, 25);
+        Text upText = textCreator("Upgrade to ", 800, 170, 30);
+        TextField reqWage = textfieldCreator(wage, 980, 150, 30, 120);
+        Button req = new Button("Send Request");
+        req.setLayoutX(1100);
+        req.setLayoutY(200);
+        req.setOnMouseClicked((MouseEvent event) -> {
+            int amount;
+            amount = Integer.valueOf(reqWage.getText());
+            String upsql = "UPDATE PLAYERS SET WAGE= " + amount + " WHERE PLAYER_ID=" + pid;
+            //sql
+            try {
+                pst = con.prepareStatement(upsql);
+                rs = pst.executeQuery();
+                errorAlert("Success", "Salary Request", "Your request for salary has been sent to the president!");
+                playerPage(pid);
+            } catch (SQLException e) {
+                errorAlert("Error", "Invalid Input", "Invalid input");
+            }
+        });
+        editPane.getChildren().addAll(nameF, contactF, agentF, t1, t2, t3, wageText, wageAmount, upText, reqWage, req, sub);
         editTab.setContent(editPane);
         tabs.getTabs().addAll(homeTab, profileTab, statsTab, editTab);
         box.getChildren().addAll(topPane, tabs);
@@ -806,9 +1377,8 @@ public class Main extends Application {
             System.exit(0);
         });
     }
-    //new
 
-    public static void managerPage(int mid) {
+    public static void managerPage2(int mid) {
         AnchorPane mainPane = new AnchorPane();
         mainPane.setPrefWidth(1550);
         mainPane.setPrefHeight(830);
@@ -872,7 +1442,7 @@ public class Main extends Application {
         TextField nameField, addressField, contactField;
         Button updateButton;
         if (managerSceneFlag == 0) { // view employees
-            // create table 
+            // create table
             managerStaffTable = new TableView<ManagerStaff>();
             managerStaffTable.setLayoutX(80);
             managerStaffTable.setLayoutY(200);
@@ -1237,7 +1807,45 @@ public class Main extends Application {
         popup.show(stage);
     }
 
-    //
+
+    public static boolean isAlpha(String name) {
+        char[] chars = name.toCharArray();
+        for (char c : chars) {
+            if (!Character.isLetter(c)) {
+                if (c == ' ' || c == '.')
+                    continue;
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static Text textCreator(String text, double x, double y, String type, int size) {
+        Text temp = new Text(text);
+        temp.setLayoutX(x);
+        temp.setLayoutY(y);
+        temp.setFont(new Font(type, size));
+        return temp;
+    }
+
+    public static Text textCreator(String text, double x, double y, int size) {
+        Text temp = new Text(text);
+        temp.setLayoutX(x);
+        temp.setLayoutY(y);
+        temp.setFont(new Font(size));
+        return temp;
+    }
+
+    public static TextField textfieldCreator(String name, double x, double y, double h, double w) {
+        TextField temp = new TextField(name);
+        temp.setLayoutX(x);
+        temp.setLayoutY(y);
+        temp.setPrefHeight(h);
+        temp.setPrefWidth(w);
+        return temp;
+    }
+
+    // shoumik
     public static void boardMemberPage(int id) {
         //boardMemberSceneFlag: 0 for view employees, 1 for profile update, 2 for manager, 3 for scout, 4 for board members, 5 for medical staffs
         AnchorPane mainPane = new AnchorPane();
@@ -1294,7 +1902,6 @@ public class Main extends Application {
             boardMemberPage(id);
         });
         editProfile.setOnMouseClicked((MouseEvent event) -> {
-
             boardMemberSceneFlag = 1;
             boardMemberPage(id);
         });
@@ -1508,41 +2115,332 @@ public class Main extends Application {
         });
     }
 
-    public static boolean isAlpha(String name) {
-        char[] chars = name.toCharArray();
-        for (char c : chars) {
-            if (!Character.isLetter(c)) {
-                if (c == ' ' || c == '.')
-                    continue;
-                return false;
+    public static void superAdminPage(int id) {
+        String name = "", address = "", contact = "", salary = "", csdate = "", cedate = "", prof = "", role = "", budget = "";
+        int totincome = 0, st_id = 0;
+
+        //sql
+        String sql = "SELECT CB.ROLE, C.START_DATE, C.END_DATE, C.BUDGET, C.TOTAL_INCOME FROM BOARD_MEMBERS BM JOIN COMMITTEE_BOARD CB ON BM.BMEMBER_ID=CB.BMEMBER_ID JOIN COMMITTEES C ON CB.COMMITTEE_ID=C.COMMITTEE_ID WHERE BM.BMEMBER_ID=" + id + "AND SYSDATE>=C.START_DATE AND SYSDATE<=C.END_DATE";
+        try {
+            pst = con.prepareStatement(sql);
+            rs = pst.executeQuery();
+            while (rs.next()) {
+                role = rs.getString(1);
+
+                csdate = rs.getDate(2).toString();
+                cedate = rs.getDate(3).toString();
+
+                budget = rs.getString(4);
+                totincome = rs.getInt(5);
+
             }
+        } catch (SQLException e) {
+            errorAlert("Error", "Error", null);
         }
-        return true;
+        sql = "SELECT BM.PROFESSION, ST.STAFF_NAME, ST.STAFF_ADDRESS, ST.CONTACT_NO, ST.SALARY, ST.STAFF_ID FROM BOARD_MEMBERS BM JOIN STAFFS ST ON BM.STAFF_ID=ST.STAFF_ID WHERE BM.BMEMBER_ID=" + id;
+        try {
+            pst = con.prepareStatement(sql);
+            rs = pst.executeQuery();
+            while (rs.next()) {
+                prof = rs.getString(1);
+                name = rs.getString(2);
+                address = rs.getString(3);
+                contact = rs.getString(4);
+                salary = rs.getString(5);
+                st_id = rs.getInt(6);
+            }
+        } catch (SQLException e) {
+            errorAlert("Error", "Error", "Error");
+        }
+        //
+        VBox box = new VBox();
+        box.setPrefHeight(750);
+        box.setPrefWidth(1300);
+        box.setStyle("-fx-background-color: white");
+        box.getStylesheets().add(Main.class.getResource("table.css").toExternalForm());
+        AnchorPane topPane = new AnchorPane();
+        topPane.setPrefHeight(125);
+        topPane.setPrefWidth(1300);
+        topPane.setStyle("-fx-background-color: white");
+        Image logoImage = new Image("logo.png");
+        ImageView logo = new ImageView(logoImage);
+        logo.setFitWidth(125);
+        logo.setFitHeight(126);
+        logo.setPickOnBounds(true);
+        logo.setPreserveRatio(true);
+        Text title = new Text("Clubname");
+        title.setLayoutX(143);
+        title.setLayoutY(83);
+        title.setFont(new Font(51));
+        Image pimg = new Image("superAdminIcon1.jpg");
+        ImageView adminIcon = new ImageView(pimg);
+        adminIcon.setFitHeight(138);
+        adminIcon.setFitWidth(200);
+        adminIcon.setLayoutX(945);
+        adminIcon.setLayoutY(15);
+        adminIcon.setPickOnBounds(true);
+        adminIcon.setPreserveRatio(true);
+        //sql to get the player name
+        Text adminName = new Text(name);
+        adminName.setLayoutX(1095);
+        adminName.setLayoutY(64);
+        adminName.setFont(new Font("System Bold", 21));
+        Text logout = new Text("(Logout)");
+        logout.setLayoutX(1209);
+        logout.setLayoutY(94);
+        logout.setFont(new Font("System Bold Italic", 17));
+        logout.setOnMouseEntered((MouseEvent event) -> {
+            logout.setFont(new Font("System Bold Italic", 20));
+            logout.setFill(Color.DARKGRAY);
+        });
+        logout.setOnMouseExited((MouseEvent event) -> {
+            logout.setFont(new Font("System Bold Italic", 17));
+            logout.setFill(Color.BLACK);
+        });
+        logout.setOnMouseClicked((MouseEvent event) -> {
+            loginScreen();
+        });
+        topPane.getChildren().addAll(logo, title, adminIcon, adminName, logout);
+        TabPane tabs = new TabPane();
+        tabs.setPrefHeight(634);
+        tabs.setPrefWidth(1300);
+        tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        Tab homeTab = new Tab();
+        homeTab.setText("Home");
+        AnchorPane homePane = new AnchorPane();
+        homePane.setPrefHeight(180);
+        homePane.setPrefWidth(200);
+        homePane.setStyle("-fx-background-color: #ccfbff");
+        double perc = (totincome * 1.00) / 300000;
+        ProgressBar pb = new ProgressBar(perc);
+        pb.setLayoutX(1000);
+        pb.setLayoutY(240);
+        pb.setPrefSize(200, 5);
+        perc = Math.round(perc * 100);
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+        LocalDate localDate = LocalDate.now();
+        System.out.println(dtf.format(localDate));
+        String date = localDate.toString();
+        Text t1 = textCreator(name, 520, 60, "System Bold", 41);
+        Text t2 = textCreator(role, 555, 100, 30);
+        Text t3 = textCreator("(" + csdate + " - " + cedate + ")", 535, 120, "System Bold Italic", 15);
+        Text t4 = textCreator("Total Budget   : " + budget + "$", 485, 230, 28);
+        Text t5 = textCreator("Total Income   : " + Integer.toString(totincome) + "$", 485, 280, 28);
+        Text t6 = textCreator(String.valueOf(perc) + "%", 1210, 255, "System Bold", 20);
+        t6.setFill(Color.GREEN);
+        Text t7 = textCreator("Expected Income :" + String.valueOf(300000) + "$", 485, 330, 28);
+        Text t8 = textCreator("*" + perc + "% has been earned of expected income", 985, 280, "System Bold", 10);
+        Text t9 = textCreator("within " + date, 985, 300, "System Bold", 10);
+        t8.setOnMouseEntered((MouseEvent event) -> {
+            t8.setFont(new Font("System Bold", 15));
+            t8.setFill(Color.RED);
+            t9.setFont(new Font("System Bold", 15));
+            t9.setFill(Color.RED);
+        });
+        t8.setOnMouseExited((MouseEvent event) -> {
+            t8.setFont(new Font("System Bold", 10));
+            t8.setFill(Color.BLACK);
+            t9.setFont(new Font("System Bold", 10));
+            t9.setFill(Color.BLACK);
+        });
+        homePane.getChildren().addAll(t1, t2, t3, t4, t5, t6, t7, t8, t9, pb);
+        homeTab.setContent(homePane);
+        Tab profileTab = new Tab();
+        profileTab.setText("Profile");
+        AnchorPane profilePane = new AnchorPane();
+        profilePane.setPrefHeight(180);
+        profilePane.setPrefWidth(200);
+        profilePane.setStyle("-fx-background-color: #ccfbff");
+        comBoardTable = new TableView<ComBoard>();
+        comBoardTable.setLayoutX(900);
+        comBoardTable.setLayoutY(150);
+        comBoardTable.setPrefHeight(240);
+        //comBoardTable.setPrefWidth(300);
+        comBoardTable.setEditable(false);
+        comBoardTable.setManaged(true);
+        comBoardTable.setPickOnBounds(true);
+        TableColumn<ComBoard, String> c1 = new TableColumn("Role");
+        TableColumn<ComBoard, String> c2 = new TableColumn("Year");
+        TableColumn<ComBoard, String> c3 = new TableColumn("End Year");
+        TableColumn<ComBoard, Integer> c4 = new TableColumn("Budget");
+        TableColumn<ComBoard, Integer> c5 = new TableColumn("Income");
+        c1.setCellValueFactory(new PropertyValueFactory<>("role"));
+        c2.setCellValueFactory(new PropertyValueFactory<>("sdate"));
+        c3.setCellValueFactory(new PropertyValueFactory<>("edate"));
+        c4.setCellValueFactory(new PropertyValueFactory<>("budget"));
+        c5.setCellValueFactory(new PropertyValueFactory<>("income"));
+        c1.setMinWidth(150);
+        c2.setMinWidth(150);
+        c3.setMinWidth(200);
+        c4.setMinWidth(150);
+        c5.setMinWidth(150);
+        sql = "SELECT CB.ROLE, to_char(C.START_DATE, 'YYYY'), C.END_DATE, C.BUDGET, C.TOTAL_INCOME FROM BOARD_MEMBERS BM JOIN COMMITTEE_BOARD CB ON BM.BMEMBER_ID=CB.BMEMBER_ID JOIN COMMITTEES C ON CB.COMMITTEE_ID=C.COMMITTEE_ID WHERE BM.BMEMBER_ID= " + id;
+        try {
+            pst = con.prepareStatement(sql);
+            rs = pst.executeQuery();
+            cbdata.clear();
+            while (rs.next()) {
+                cbdata.add(new ComBoard(new SimpleStringProperty(rs.getString(1)), new SimpleStringProperty(rs.getString(2)), new SimpleStringProperty(rs.getString(3)), new SimpleIntegerProperty(rs.getInt(4)), new SimpleIntegerProperty(rs.getInt(5))));
+            }
+
+
+        } catch (SQLException e) {
+            errorAlert("Error", "Error", null);
+        }
+        Text t10 = textCreator("History", 1000, 120, "System Bold", 35);
+        comBoardTable.setItems(cbdata);
+        comBoardTable.getColumns().addAll(c1, c2);
+        Text t11 = textCreator("Address  :", 30, 160, "System Bold", 30);
+        Text t12 = textCreator(address, 215, 160, 25);
+        Text t13 = textCreator("Profession :", 30, 210, "System Bold", 30);
+        Text t14 = textCreator(prof, 215, 210, 25);
+        Text t15 = textCreator("Contact No:", 30, 260, "System Bold", 30);
+        Text t16 = textCreator(contact, 215, 260, 25);
+        Text t17 = textCreator("Salary   :", 30, 310, "System Bold", 30);
+        Text t18 = textCreator(salary, 215, 310, 25);
+        Text t19 = textCreator(name, 520, 60, "System Bold", 41);
+        Text t20 = textCreator(role, 555, 100, 30);
+        Text t21 = textCreator("(" + csdate + " - " + cedate + ")", 535, 120, "System Bold Italic", 15);
+        profilePane.getChildren().addAll(t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, comBoardTable);
+        profileTab.setContent(profilePane);
+        Tab editTab = new Tab();
+        editTab.setText("Edit Profile");
+        AnchorPane editPane = new AnchorPane();
+        editPane.setPrefHeight(180);
+        editPane.setPrefWidth(200);
+        editPane.setStyle("-fx-background-color: #ccfbff");
+        TextField nameF = textfieldCreator(name, 83, 119, 30, 300);
+        TextField proF = textfieldCreator(prof, 83, 215, 30, 300);
+        TextField addF = textfieldCreator(address, 83, 311, 30, 300);
+        TextField contactF = textfieldCreator(contact, 83, 407, 30, 300);
+        t1 = textCreator("Name : ", 83, 97, 28);
+        t2 = textCreator("Profession : ", 83, 195, 28);
+        t3 = textCreator("Address : ", 83, 293, 28);
+        t4 = textCreator("Contact no :", 83, 391, 28);
+        Button sub = new Button("Submit");
+        sub.setLayoutX(350);
+        sub.setLayoutY(500);
+        sub.setOnMouseClicked((MouseEvent event) -> {
+            String tname, tprof, tcon, tadd;
+            tname = nameF.getText();
+            tprof = proF.getText();
+            tadd = addF.getText();
+            tcon = contactF.getText();
+            System.out.println(tname + " " + tprof + " " + tadd + " " + tcon);
+            boolean nameA = isAlpha(tname);
+            boolean conN = tcon.chars().allMatch(Character::isDigit);
+            //if (nameA && conN) {
+            String ssql = "UPDATE BOARD_MEMBERS SET PROFESSION='" + tprof + "' WHERE BMEMBER_ID=" + id;
+
+            try {
+                pst = con.prepareStatement(ssql);
+
+                rs = pst.executeQuery();
+                System.out.println("first passed");
+
+            } catch (SQLException e) {
+                errorAlert("Error", "Error", null);
+                e.printStackTrace();
+            }
+            String usql = "UPDATE STAFFS SET STAFF_NAME='" + tname + "' ,STAFF_ADDRESS='" + tadd + "' , CONTACT_NO=" + tcon + " WHERE STAFF_ID=" + id;
+            try {
+                pst = con.prepareStatement(usql);
+                rs = pst.executeQuery();
+                System.out.println("second passed");
+                errorAlert("Success", "Profile updated successfully", null);
+                //scoutPage(sid);
+            } catch (SQLException e) {
+                errorAlert("Error", "Error", "Invalid input");
+            }
+            /*} else {
+                errorAlert("Error", "Invalid Input", "Invalid input");
+            }*/
+        });
+        editPane.getChildren().addAll(nameF, contactF, addF, proF, t1, t2, t3, t4, sub);
+        editTab.setContent(editPane);
+        //
+        Tab msgTab = new Tab();
+        msgTab.setText("Message Box");
+        AnchorPane msgPane = new AnchorPane();
+        msgPane.setPrefHeight(180);
+        msgPane.setPrefWidth(200);
+        msgPane.setStyle("-fx-background-color: #ccfbff");
+        Text request = textCreator("Salary Requests", 200, 80, "System Bold", 30);
+        salUpdateTable = new TableView<SalaryUpdate>();
+        salUpdateTable.setLayoutX(200);
+        salUpdateTable.setLayoutY(120);
+        salUpdateTable.setPrefHeight(240);
+        //comBoardTable.setPrefWidth(300);
+        salUpdateTable.setEditable(false);
+        //salUpdateTable.setPickOnBounds(true);
+        TableColumn<SalaryUpdate, String> c11 = new TableColumn("Name");
+        TableColumn<SalaryUpdate, String> c21 = new TableColumn("Type");
+        TableColumn<SalaryUpdate, String> c31 = new TableColumn("Previous Wage");
+        TableColumn<SalaryUpdate, String> c41 = new TableColumn("Requested Wage");
+        TableColumn<SalaryUpdate, String> c51 = new TableColumn("Date");
+        c11.setCellValueFactory(new PropertyValueFactory<>("name"));
+        c21.setCellValueFactory(new PropertyValueFactory<>("type"));
+        c31.setCellValueFactory(new PropertyValueFactory<>("previous wage"));
+        c41.setCellValueFactory(new PropertyValueFactory<>("requested wage"));
+        c51.setCellValueFactory(new PropertyValueFactory<>("date"));
+        c11.setMinWidth(150);
+        c21.setMinWidth(150);
+        c31.setMinWidth(200);
+        c41.setMinWidth(200);
+        c51.setMinWidth(150);
+        sql = "SELECT NAME, TYPE, PREV_SALARY, REQ_SALARY, REQ_DATE FROM SALARY_UPDATE";
+        try {
+            pst = con.prepareStatement(sql);
+            rs = pst.executeQuery();
+            salUpdatedata.clear();
+            while (rs.next()) {
+                salUpdatedata.add(new SalaryUpdate(new SimpleStringProperty(rs.getString(1)), new SimpleStringProperty(rs.getString(2)), new SimpleStringProperty(rs.getString(3)), new SimpleStringProperty(rs.getString(4)), new SimpleStringProperty(rs.getString(5))));
+            }
+        } catch (SQLException e) {
+            errorAlert("Error", "Error", null);
+        }
+        salUpdateTable.setItems(salUpdatedata);
+        salUpdateTable.getColumns().addAll(c11, c21, c31, c41, c51);
+        msgPane.getChildren().addAll(salUpdateTable, request);
+        msgTab.setContent(msgPane);
+        tabs.getTabs().addAll(homeTab, profileTab, editTab, msgTab);
+        box.getChildren().addAll(topPane, tabs);
+        Scene scene = new Scene(box);
+        stage.setScene(scene);
+        stage.setTitle(name);
+        stage.show();
+        stage.getIcons().add(new Image("icon.png"));
+        stage.setOnCloseRequest((WindowEvent t) -> {
+            Platform.exit();
+            System.exit(0);
+        });
     }
 
-    public static Text textCreator(String text, double x, double y, String type, int size) {
-        Text temp = new Text(text);
-        temp.setLayoutX(x);
-        temp.setLayoutY(y);
-        temp.setFont(new Font(type, size));
-        return temp;
-    }
-
-    public static Text textCreator(String text, double x, double y, int size) {
-        Text temp = new Text(text);
-        temp.setLayoutX(x);
-        temp.setLayoutY(y);
-        temp.setFont(new Font(size));
-        return temp;
-    }
-
-    public static TextField textfieldCreator(String name, double x, double y, double h, double w) {
-        TextField temp = new TextField(name);
-        temp.setLayoutX(x);
-        temp.setLayoutY(y);
-        temp.setPrefHeight(h);
-        temp.setPrefWidth(w);
-        return temp;
+    public static String isStillPresident(int id) {
+        String res = "";
+        //String sql="{? = CALL stillPresident(?)}";
+        String sql = "begin ? := stillPresident(?); end;";
+        CallableStatement cstmt;
+        try {
+            cstmt = con.prepareCall(sql);
+            //rs = cstmt.executeQuery();
+            cstmt.registerOutParameter(1, Types.VARCHAR);
+            cstmt.setInt(2, id);
+            cstmt.execute();
+            res = cstmt.getString(1);
+            System.out.println("rs passed");
+            System.out.println(res);
+            int i = 0;
+            //bsdata.clear();
+            //while (rs.next()) {
+            //bsdata.add(new BoardStaff(new SimpleIntegerProperty(rs.getInt(1)), new SimpleStringProperty(rs.getString(2)), new SimpleStringProperty(rs.getString(3)), new SimpleIntegerProperty(rs.getInt(4)), new SimpleIntegerProperty(rs.getInt(5))));
+            //res=rs.getString(i);
+            //i++;
+            //}
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return res;
     }
 }
 
