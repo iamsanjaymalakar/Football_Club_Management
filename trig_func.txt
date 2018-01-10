@@ -72,3 +72,19 @@ BEGIN
     INSERT INTO SALARY_UPDATE VALUES (PL_NAME,PL_TYPE,PREV_SALARY,REQ_SALARY,SYSDATE);
     :NEW.WAGE := :OLD.WAGE;
 END ;
+
+
+CREATE OR REPLACE
+function upcomingMatch
+return number is
+mdate date;
+id number;
+begin
+    begin
+    select min(match_date) into mdate from MATCHES where MATCH_DATE>SYSDATE;
+    end;
+    begin
+    select (MATCH_ID) into id from matches where MATCH_DATE=(select min(match_date) from MATCHES where MATCH_DATE>SYSDATE);
+    end;
+    return id;
+end;
