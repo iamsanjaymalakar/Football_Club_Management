@@ -34,6 +34,7 @@ import javafx.stage.WindowEvent;
 import java.sql.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.concurrent.atomic.AtomicReference;
 
 
@@ -85,7 +86,7 @@ public class Main extends Application {
         boardMemberSceneFlag = 0;
         //
         try {
-            con = DriverManager.getConnection("jdbc:oracle:thin:@localhost:1521:ORCL", "shoumik", "shoumik123");
+            con = DriverManager.getConnection("jdbc:oracle:thin:@localhost:1521:globaldb", "clubmanagement", "football");
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -150,7 +151,7 @@ public class Main extends Application {
                         if (userType.equals("Manager")) {
                             managerPage(id);
                         } else if (userType.equals("Player")) {
-                            playerPage(id,"NotAdmin");
+                            playerPage(id, "NotAdmin");
                         } else if (userType.equals("Scout")) {
                             scoutPage(id);
                         } else if (userType.equals("Medical")) {
@@ -197,7 +198,7 @@ public class Main extends Application {
         } catch (SQLException e) {
             errorAlert("Error.", "Error", "Error");
         }
-        System.out.println(mdate+"  "+mopp+"  "+mtname+"  "+mstage);
+        System.out.println(mdate + "  " + mopp + "  " + mtname + "  " + mstage);
 
         Text t1 = textCreator("Next Match in " + mdate + " Days", 935, 151, 31);
         Text t2 = textCreator(mtname, 984, 292, 25);
@@ -364,7 +365,7 @@ public class Main extends Application {
         SortedList<PlayersHome> sort2 = new SortedList<>(filter2);
         sort2.comparatorProperty().bind(tempTable2.comparatorProperty());
         tempTable2.setItems(sort2);
-        medicPane.getChildren().addAll(tempTable2,search2);
+        medicPane.getChildren().addAll(tempTable2, search2);
         medicTab.setContent(medicPane);
         Tab editTab = new Tab();
         editTab.setText("Team");
@@ -1379,7 +1380,7 @@ public class Main extends Application {
         playerIcon.setPreserveRatio(true);
         //sql to get the player name
         String name = "";
-        int adminid=0;
+        int adminid = 0;
         String sql = "select PLAYER_NAME from PLAYERS where PLAYER_ID=" + pid;
         try {
             pst = con.prepareStatement(sql);
@@ -1391,8 +1392,7 @@ public class Main extends Application {
             e.printStackTrace();
             errorAlert("Error", "Error", null);
         }
-        if(detector=="Admin")
-        {
+        if (detector == "Admin") {
             sql = "SELECT BMEMBER_ID FROM BOARD_MEMBERS WHERE STILLPRESIDENT(BMEMBER_ID)='YES'";
             try {
                 pst = con.prepareStatement(sql);
@@ -1427,7 +1427,7 @@ public class Main extends Application {
         });
 
 
-        final int superAdminId=adminid;
+        final int superAdminId = adminid;
         Text back = new Text("(Back)");
         back.setLayoutX(1209);
         back.setLayoutY(75);
@@ -1441,15 +1441,12 @@ public class Main extends Application {
             back.setFill(Color.BLACK);
         });
         back.setOnMouseClicked((MouseEvent event) -> {
-            superAdminPage(superAdminId,"Admin");
+            superAdminPage(superAdminId, "Admin");
         });
 
-        if(detector=="NotAdmin")
-        {
+        if (detector == "NotAdmin") {
             topPane.getChildren().addAll(logo, title, playerIcon, playerName, logout);
-        }
-        else if(detector=="Admin")
-        {
+        } else if (detector == "Admin") {
             topPane.getChildren().addAll(logo, title, back, logout);
         }
 
@@ -1814,7 +1811,7 @@ public class Main extends Application {
                     pst = con.prepareStatement(usql);
                     rs = pst.executeQuery();
                     errorAlert("Success", "Profile updated successfully", null);
-                    playerPage(pid,"NotAdmin");
+                    playerPage(pid, "NotAdmin");
                 } catch (SQLException e) {
                     errorAlert("Error", "Invalid Input", "Invalid input");
                 }
@@ -1833,8 +1830,8 @@ public class Main extends Application {
         req.setOnMouseClicked((MouseEvent event) -> {
             int amount;
             amount = Integer.valueOf(reqWage.getText());
-            String upsql="UPDATE PLAYERS SET WAGE= "+amount+" WHERE PLAYER_ID="+pid;
-            String trig="ALTER TRIGGER SALARYUPDATEPLAYERS ENABLE";
+            String upsql = "UPDATE PLAYERS SET WAGE= " + amount + " WHERE PLAYER_ID=" + pid;
+            String trig = "ALTER TRIGGER SALARYUPDATEPLAYERS ENABLE";
 
             //sql
             try {
@@ -1849,7 +1846,7 @@ public class Main extends Application {
                 rs = pst.executeQuery();
 
                 errorAlert("Success", "Salary Request", "Your request for salary has been sent to the president!");
-                playerPage(pid,"NotAdmin");
+                playerPage(pid, "NotAdmin");
             } catch (SQLException e) {
                 errorAlert("Error", "Invalid Input", "Invalid input");
             }
@@ -1857,12 +1854,9 @@ public class Main extends Application {
         });
         editPane.getChildren().addAll(nameF, contactF, agentF, t1, t2, t3, wageText, wageAmount, upText, reqWage, req, sub);
         editTab.setContent(editPane);
-        if(detector=="NotAdmin")
-        {
+        if (detector == "NotAdmin") {
             tabs.getTabs().addAll(homeTab, profileTab, statsTab, editTab);
-        }
-        else if(detector=="Admin")
-        {
+        } else if (detector == "Admin") {
             tabs.getTabs().addAll(homeTab, profileTab, statsTab);
         }
 
@@ -2193,19 +2187,16 @@ public class Main extends Application {
         int totincome = 0, st_id = 0;
 
         //sql
-        String sql = "SELECT CB.ROLE, C.START_DATE, C.END_DATE, C.BUDGET, C.TOTAL_INCOME FROM BOARD_MEMBERS BM JOIN COMMITTEE_BOARD CB ON BM.BMEMBER_ID=CB.BMEMBER_ID JOIN COMMITTEES C ON CB.COMMITTEE_ID=C.COMMITTEE_ID WHERE BM.BMEMBER_ID=" + id ;
+        String sql = "SELECT CB.ROLE, C.START_DATE, C.END_DATE, C.BUDGET, C.TOTAL_INCOME FROM BOARD_MEMBERS BM JOIN COMMITTEE_BOARD CB ON BM.BMEMBER_ID=CB.BMEMBER_ID JOIN COMMITTEES C ON CB.COMMITTEE_ID=C.COMMITTEE_ID WHERE BM.BMEMBER_ID=" + id;
         try {
             pst = con.prepareStatement(sql);
             rs = pst.executeQuery();
             while (rs.next()) {
                 role = rs.getString(1);
-
                 csdate = rs.getDate(2).toString();
                 cedate = rs.getDate(3).toString();
-
                 budget = rs.getString(4);
                 totincome = rs.getInt(5);
-
             }
         } catch (SQLException e) {
             errorAlert("Error", "Error", null);
@@ -2288,7 +2279,6 @@ public class Main extends Application {
         homePane.setPrefHeight(180);
         homePane.setPrefWidth(200);
         homePane.setStyle("-fx-background-color: #ccfbff");
-
         double perc = (totincome * 1.00) / 300000;
         ProgressBar pb = new ProgressBar(perc);
         pb.setLayoutX(1000);
@@ -2329,15 +2319,15 @@ public class Main extends Application {
         incomeSeries.setName("Income in years");
 
         int count = 1;
-        String bsql="SELECT * FROM COMMITTEES";
+        String bsql = "SELECT * FROM COMMITTEES";
         try {
             pst = con.prepareStatement(bsql);
             rs = pst.executeQuery();
 
             while (rs.next()) {
                 //pslist.add(new PlayerStat(new SimpleStringProperty(rs.getString(1)), new SimpleStringProperty(rs.getString(2)), new SimpleStringProperty(rs.getString(3)), new SimpleStringProperty(rs.getString(4)), new SimpleStringProperty(rs.getString(5)), new SimpleStringProperty(rs.getString(6)), new SimpleStringProperty(rs.getString(7)), new SimpleStringProperty(rs.getString(8)), new SimpleStringProperty(rs.getString(9)), new SimpleStringProperty(rs.getString(10)), new SimpleStringProperty(rs.getString(11))));
-                budgetSeries.getData().add(new XYChart.Data(2010+count, rs.getInt(4)));
-                incomeSeries.getData().add(new XYChart.Data(2010+count, rs.getInt(5)));
+                budgetSeries.getData().add(new XYChart.Data(2010 + count, rs.getInt(4)));
+                incomeSeries.getData().add(new XYChart.Data(2010 + count, rs.getInt(5)));
                 //System.out.println(budgetSeries.getData());
                 count++;
                 //rts.getData().add(new XYChart.Data(i++, rs.getInt(10)));
@@ -2347,10 +2337,10 @@ public class Main extends Application {
         }
         //pstable.setItems(pslist);
         //chart
-        NumberAxis xAxis = new NumberAxis("Year", 2011, 2011+count-1, 1);
+        NumberAxis xAxis = new NumberAxis("Year", 2011, 2011 + count - 1, 1);
         NumberAxis yAxis = new NumberAxis("Budget", 0, 700000, 30000);
         LineChart budgetChart = new LineChart(xAxis, yAxis);
-        budgetChart.getData().addAll(budgetSeries,incomeSeries);
+        budgetChart.getData().addAll(budgetSeries, incomeSeries);
         //xAxis = new NumberAxis("Match", 1, cnt, 1);
         //yAxis = new NumberAxis("Rating", 0, 10, 1);
         //LineChart ratingChart = new LineChart(xAxis, yAxis);
@@ -2358,26 +2348,18 @@ public class Main extends Application {
         budgetChart.setLayoutY(40);
         budgetChart.setPrefHeight(400);
         budgetChart.setPrefWidth(450);
-
-        if(detector=="Admin")
-        {
+        if (detector == "Admin") {
             homePane.getChildren().addAll(t1, t2, t3, t4, t5, t6, t7, t8, t9, pb, budgetChart);
-        }
-        else if(detector=="NotAdmin")
-        {
+        } else if (detector == "NotAdmin") {
             homePane.getChildren().addAll(t1, t2, t3, t4, t5, t7, budgetChart);
         }
-
-
         homeTab.setContent(homePane);
-
         Tab profileTab = new Tab();
         profileTab.setText("Profile");
         AnchorPane profilePane = new AnchorPane();
         profilePane.setPrefHeight(180);
         profilePane.setPrefWidth(200);
         profilePane.setStyle("-fx-background-color: #ccfbff");
-
         comBoardTable = new TableView<ComBoard>();
         comBoardTable.setLayoutX(900);
         comBoardTable.setLayoutY(150);
@@ -2385,28 +2367,22 @@ public class Main extends Application {
         //comBoardTable.setPrefWidth(300);
         comBoardTable.setEditable(false);
         comBoardTable.setManaged(true);
-
         comBoardTable.setPickOnBounds(true);
         TableColumn<ComBoard, String> c1 = new TableColumn("Role");
         TableColumn<ComBoard, String> c2 = new TableColumn("Year");
         TableColumn<ComBoard, String> c3 = new TableColumn("End Year");
         TableColumn<ComBoard, Integer> c4 = new TableColumn("Budget");
         TableColumn<ComBoard, Integer> c5 = new TableColumn("Income");
-
         c1.setCellValueFactory(new PropertyValueFactory<>("role"));
         c2.setCellValueFactory(new PropertyValueFactory<>("sdate"));
         c3.setCellValueFactory(new PropertyValueFactory<>("edate"));
         c4.setCellValueFactory(new PropertyValueFactory<>("budget"));
         c5.setCellValueFactory(new PropertyValueFactory<>("income"));
-
-
         c1.setMinWidth(150);
         c2.setMinWidth(150);
         c3.setMinWidth(200);
         c4.setMinWidth(150);
         c5.setMinWidth(150);
-
-
         sql = "SELECT CB.ROLE, to_char(C.START_DATE, 'YYYY'), C.END_DATE, C.BUDGET, C.TOTAL_INCOME FROM BOARD_MEMBERS BM JOIN COMMITTEE_BOARD CB ON BM.BMEMBER_ID=CB.BMEMBER_ID JOIN COMMITTEES C ON CB.COMMITTEE_ID=C.COMMITTEE_ID WHERE BM.BMEMBER_ID= " + id;
         try {
             pst = con.prepareStatement(sql);
@@ -2415,17 +2391,12 @@ public class Main extends Application {
             while (rs.next()) {
                 cbdata.add(new ComBoard(new SimpleStringProperty(rs.getString(1)), new SimpleStringProperty(rs.getString(2)), new SimpleStringProperty(rs.getString(3)), new SimpleIntegerProperty(rs.getInt(4)), new SimpleIntegerProperty(rs.getInt(5))));
             }
-
-
         } catch (SQLException e) {
             errorAlert("Error", "Error", null);
         }
         Text t10 = textCreator("History", 1000, 120, "System Bold", 35);
         comBoardTable.setItems(cbdata);
         comBoardTable.getColumns().addAll(c1, c2);
-
-
-
         Text t11 = textCreator("Address  :", 30, 160, "System Bold", 30);
         Text t12 = textCreator(address, 215, 160, 25);
         Text t13 = textCreator("Profession :", 30, 210, "System Bold", 30);
@@ -2439,7 +2410,6 @@ public class Main extends Application {
         Text t21 = textCreator("(" + csdate + " - " + cedate + ")", 535, 120, "System Bold Italic", 15);
         profilePane.getChildren().addAll(t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, comBoardTable);
         profileTab.setContent(profilePane);
-
         Tab editTab = new Tab();
         editTab.setText("Edit Profile");
         AnchorPane editPane = new AnchorPane();
@@ -2459,45 +2429,38 @@ public class Main extends Application {
         sub.setLayoutY(500);
         sub.setOnMouseClicked((MouseEvent event) -> {
             String tname, tprof, tcon, tadd;
-
             tname = nameF.getText();
             tprof = proF.getText();
             tadd = addF.getText();
             tcon = contactF.getText();
             System.out.println(tname + " " + tprof + " " + tadd + " " + tcon);
-
             boolean nameA = isAlpha(tname);
             boolean conN = tcon.chars().allMatch(Character::isDigit);
-
-
-            //if (nameA && conN) {
-            String ssql = "UPDATE BOARD_MEMBERS SET PROFESSION='" + tprof + "' WHERE BMEMBER_ID=" + id;
-
-            try {
-                pst = con.prepareStatement(ssql);
-
-                rs = pst.executeQuery();
-                System.out.println("first passed");
-
-            } catch (SQLException e) {
-                errorAlert("Error", "Error", null);
-                e.printStackTrace();
-            }
-            String usql = "UPDATE STAFFS SET STAFF_NAME='" + tname + "' ,STAFF_ADDRESS='" + tadd + "' , CONTACT_NO=" + tcon + " WHERE STAFF_ID=" + id;
-            try {
-                pst = con.prepareStatement(usql);
-                rs = pst.executeQuery();
-                System.out.println("second passed");
-                superAdminMsgFlag = 4;
-                superAdminPage(id, detector);
-                errorAlert("Success", "Profile updated successfully", null);
-                //scoutPage(sid);
-            } catch (SQLException e) {
-                errorAlert("Error", "Error", "Invalid input");
-            }
-            /*} else {
+            if (nameA && conN) {
+                String ssql = "UPDATE BOARD_MEMBERS SET PROFESSION='" + tprof + "' WHERE BMEMBER_ID=" + id;
+                try {
+                    pst = con.prepareStatement(ssql);
+                    rs = pst.executeQuery();
+                    System.out.println("first passed");
+                } catch (SQLException e) {
+                    errorAlert("Error", "Error", null);
+                    e.printStackTrace();
+                }
+                String usql = "UPDATE STAFFS SET STAFF_NAME='" + tname + "' ,STAFF_ADDRESS='" + tadd + "' , CONTACT_NO=" + tcon + " WHERE STAFF_ID=" + id;
+                try {
+                    pst = con.prepareStatement(usql);
+                    rs = pst.executeQuery();
+                    System.out.println("second passed");
+                    superAdminMsgFlag = 4;
+                    superAdminPage(id, detector);
+                    errorAlert("Success", "Profile updated successfully", null);
+                    //scoutPage(sid);
+                } catch (SQLException e) {
+                    errorAlert("Error", "Error", "Invalid input");
+                }
+            } else {
                 errorAlert("Error", "Invalid Input", "Invalid input");
-            }*/
+            }
         });
         if (superAdminMsgFlag == 4) {
             selectionModel.select(profileTab);
@@ -2511,55 +2474,42 @@ public class Main extends Application {
         msgPane.setPrefHeight(180);
         msgPane.setPrefWidth(200);
         msgPane.setStyle("-fx-background-color: #ccfbff");
-
-
         Text request = textCreator("Salary Requests", 200, 80, "System Bold", 30);
-
         salUpdateTable = new TableView<SalaryUpdate>();
         salUpdateTable.setLayoutX(200);
         salUpdateTable.setLayoutY(120);
         salUpdateTable.setPrefHeight(240);
         //comBoardTable.setPrefWidth(300);
         salUpdateTable.setEditable(false);
-
         Button approve = new Button("Approve");
         approve.setLayoutX(850);
         approve.setLayoutY(400);
         approve.setMinSize(80, 20);
         //approve.setStyle("-fx-background-color: #39e600; -fx-border-color: #33cc00; -fx-border-width: 2px;");
-
         //approve.setMaxWidth(100);
         //approve.setPrefHeight(20);
-
         Button cancel = new Button("Cancel");
         cancel.setLayoutX(950);
         cancel.setLayoutY(400);
         cancel.setMinSize(80, 20);
         //approve.setMinWidth(100);
         //approve.setPrefHeight(20);
-
-
         //salUpdateTable.setPickOnBounds(true);
         TableColumn<SalaryUpdate, String> c11 = new TableColumn("Name");
         TableColumn<SalaryUpdate, String> c21 = new TableColumn("Type");
         TableColumn<SalaryUpdate, String> c31 = new TableColumn("Previous Wage");
         TableColumn<SalaryUpdate, String> c41 = new TableColumn("Requested Wage");
         TableColumn<SalaryUpdate, String> c51 = new TableColumn("Date");
-
         c11.setCellValueFactory(new PropertyValueFactory<>("name"));
         c21.setCellValueFactory(new PropertyValueFactory<>("type"));
         c31.setCellValueFactory(new PropertyValueFactory<>("pSal"));
         c41.setCellValueFactory(new PropertyValueFactory<>("rSal"));
         c51.setCellValueFactory(new PropertyValueFactory<>("date"));
-
-
         c11.setMinWidth(150);
         c21.setMinWidth(150);
         c31.setMinWidth(200);
         c41.setMinWidth(200);
         c51.setMinWidth(150);
-
-
         sql = "SELECT NAME, TYPE, PREV_SALARY, REQ_SALARY, REQ_DATE FROM SALARY_UPDATE";
         try {
             pst = con.prepareStatement(sql);
@@ -2568,8 +2518,6 @@ public class Main extends Application {
             while (rs.next()) {
                 salUpdatedata.add(new SalaryUpdate(new SimpleStringProperty(rs.getString(1)), new SimpleStringProperty(rs.getString(2)), new SimpleStringProperty(rs.getString(3)), new SimpleStringProperty(rs.getString(4)), new SimpleStringProperty(rs.getString(5))));
             }
-
-
         } catch (SQLException e) {
             errorAlert("Error", "Error", null);
         }
@@ -2577,8 +2525,6 @@ public class Main extends Application {
         salUpdateTable.getColumns().addAll(c11, c21, c31, c41, c51);
         salUpdateTable.setManaged(true);
         //salUpdateTable.setEditable(true);
-
-
         salUpdateTable.setOnMouseClicked((MouseEvent event) -> {
                     SalaryUpdate sObject = salUpdateTable.getSelectionModel().getSelectedItem();
                     String newSal = sObject.rSal.get(), newName = sObject.name.get();
@@ -2593,7 +2539,6 @@ public class Main extends Application {
                     } catch (SQLException e) {
                         e.printStackTrace();
                     }
-
                     approve.setOnMouseClicked((MouseEvent e) -> {
                         String upsql = "UPDATE PLAYERS SET WAGE=" + newSal + " WHERE PLAYER_NAME= '" + newName + "'";
                         String desql = "DELETE FROM SALARY_UPDATE WHERE NAME='" + newName + "'";
@@ -2723,7 +2668,8 @@ public class Main extends Application {
         c133.setMinWidth(100);
 
 
-        sql = "SELECT * FROM PLAYERS";
+        sql = "SELECT player_id,player_name,to_char(date_of_birth,'DD-MM-YYYY'),NATIONALITY,POSITION,HEIGHT,weight,CONTACT_NO," +
+                "wage,to_char(CONTACT_TILL,'DD-MM-YYYY'),MARKET_VALUE,BUY_OUT_CLAUSE,AGENT_NAME FROM PLAYERS";
         try {
             pst = con.prepareStatement(sql);
             rs = pst.executeQuery();
@@ -2735,6 +2681,7 @@ public class Main extends Application {
 
 
         } catch (SQLException e) {
+            e.printStackTrace();
             errorAlert("Error", "Error", null);
         }
         playerBasicTable.setItems(playerBasicdata);
@@ -2754,6 +2701,15 @@ public class Main extends Application {
                 if (temp.getName().toLowerCase().contains(input)) {
                     return true;
                 }
+                if (temp.getAgname().toLowerCase().contains(input)) {
+                    return true;
+                }
+                if (temp.getPos().toLowerCase().contains(input)) {
+                    return true;
+                }
+                if (temp.getNat().toLowerCase().contains(input)) {
+                    return true;
+                }
                 return false;
             });
         });
@@ -2766,14 +2722,16 @@ public class Main extends Application {
         add.setLayoutY(400);
         add.setVisible(true);
         TextField f_name = textfieldCreatorNew("Name", 50, 360, 15, 100);
-        TextField f_dob = textfieldCreatorNew("Birthdate", 170, 360, 15, 100);
+        //TextField f_dob = textfieldCreatorNew("Birthdate", 170, 360, 15, 100);
+        DatePicker f_dob = datePickerCreator(170, 360, 15, 100);
         TextField f_nat = textfieldCreatorNew("Nationality", 290, 360, 15, 100);
         TextField f_pos = textfieldCreatorNew("Position", 410, 360, 15, 60);
         TextField f_height = textfieldCreatorNew("Height", 490, 360, 15, 60);
         TextField f_weight = textfieldCreatorNew("Weight", 570, 360, 15, 60);
         TextField f_contactno = textfieldCreatorNew("Contact No", 650, 360, 15, 80);
         TextField f_wage = textfieldCreatorNew("Wage", 750, 360, 15, 60);
-        TextField f_contacttill = textfieldCreatorNew("Contact Till", 830, 360, 15, 100);
+        //TextField f_contacttill = textfieldCreatorNew("Contact Till", 830, 360, 15, 100);
+        DatePicker f_contacttill = datePickerCreator(830, 360, 15, 100);
         TextField f_buy = textfieldCreatorNew("Buy Out Clause", 950, 360, 15, 80);
         TextField f_value = textfieldCreatorNew("Market Value", 1050, 360, 15, 80);
         TextField f_agname = textfieldCreatorNew("Agent Name", 1150, 360, 15, 100);
@@ -2783,19 +2741,19 @@ public class Main extends Application {
         add.setOnMouseClicked((MouseEvent event) -> {
                     String aname, adob, anat, apos, aheight, aweight, acontact, avalue, aagname, awage, acontacttill, abuy;
                     aname = f_name.getText();
-                    adob = f_dob.getText();
+                    //adob = f_dob.getText();
                     anat = f_nat.getText();
                     apos = f_pos.getText();
                     aheight = f_height.getText();
                     aweight = f_weight.getText();
                     acontact = f_contactno.getText();
                     awage = f_wage.getText();
-                    acontacttill = f_contacttill.getText();
+                    //acontacttill = f_contacttill.getText();
                     abuy = f_buy.getText();
                     avalue = f_value.getText();
                     aagname = f_agname.getText();
 
-                    String isql = "INSERT INTO PLAYERS (PLAYER_ID, PLAYER_NAME, DATE_OF_BIRTH, NATIONALITY, POSITION, HEIGHT, WEIGHT, CONTACT_NO, WAGE, CONTACT_TILL, MARKET_VALUE, BUY_OUT_CLAUSE, AGENT_NAME) VALUES (" + index + ", '" + aname + "', '" + adob + "' , '" + anat + "', '" + apos + "', '" + aheight + "', '" + aweight + "', '" + acontact + "', '" + awage + "', '" + acontacttill + "', '" + avalue + "', '" + abuy + "', '" + aagname + "')";
+                   /* String isql = "INSERT INTO PLAYERS (PLAYER_ID, PLAYER_NAME, DATE_OF_BIRTH, NATIONALITY, POSITION, HEIGHT, WEIGHT, CONTACT_NO, WAGE, CONTACT_TILL, MARKET_VALUE, BUY_OUT_CLAUSE, AGENT_NAME) VALUES (" + index + ", '" + aname + "', '" + adob + "' , '" + anat + "', '" + apos + "', '" + aheight + "', '" + aweight + "', '" + acontact + "', '" + awage + "', '" + acontacttill + "', '" + avalue + "', '" + abuy + "', '" + aagname + "')";
                     try {
                         pst = con.prepareStatement(isql);
                         rs = pst.executeQuery();
@@ -2803,7 +2761,7 @@ public class Main extends Application {
                         superAdminPage(id, "Admin");
                     } catch (SQLException e) {
                         e.printStackTrace();
-                    }
+                    }*/
                 }
 
         );
@@ -2821,11 +2779,26 @@ public class Main extends Application {
         view.setLayoutY(2);
         view.setVisible(false);
 
-        playerPane.setOnMouseClicked((MouseEvent event)-> {
+        playerPane.setOnMouseClicked((MouseEvent event) -> {
             edit.setVisible(false);
             delete.setVisible(false);
             view.setVisible(false);
             add.setVisible(true);
+            f_name.clear();
+            f_dob.setValue(LocalDate.now());
+            f_dob.setPromptText("dd MM yyy");
+            f_nat.clear();
+            f_pos.clear();
+            f_height.clear();
+            f_weight.clear();
+            f_contactno.clear();
+            f_wage.clear();
+            f_contacttill.setValue(LocalDate.now());
+            f_buy.clear();
+            f_value.clear();
+            f_agname.clear();
+
+
         });
 
         playerBasicTable.setOnMouseClicked((MouseEvent event) -> {
@@ -2856,6 +2829,12 @@ public class Main extends Application {
 
                     abuy = pObject.getBuyClause();
                     f_name.setText(aname);
+                    //
+                    /*DateTimeFormatter format = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
+                    LocalDate dobDate = LocalDate.parse(acontacttill, format);*/
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+                    LocalDate Date = LocalDate.parse(adob, formatter);
+                    f_dob.setValue(Date);
                     f_dob.setPromptText("dd MM yyy");
                     f_nat.setText(anat);
                     f_pos.setText(apos);
@@ -2863,7 +2842,10 @@ public class Main extends Application {
                     f_weight.setText(aweight);
                     f_contactno.setText(acontact);
                     f_wage.setText(awage);
+                    LocalDate contractDate = LocalDate.parse(acontacttill, formatter);
                     f_contacttill.setPromptText("dd MM yyyy");
+                    LocalDate cDate = LocalDate.parse(acontacttill, formatter);
+                    f_contacttill.setValue(cDate);
                     f_buy.setText(abuy);
                     f_value.setText(avalue);
                     f_agname.setText(aagname);
@@ -2878,14 +2860,16 @@ public class Main extends Application {
                         e.printStackTrace();
                     }
 
-                    view.setOnMouseClicked((MouseEvent e)->{
-                        playerPage(Integer.valueOf(aid),"Admin");
+                    view.setOnMouseClicked((MouseEvent e) -> {
+                        playerPage(Integer.valueOf(aid), "Admin");
                     });
 
                     edit.setOnMouseClicked((MouseEvent e) -> {
+                        DateTimeFormatter format = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
+                        String tempdob = f_dob.getValue().format(format), tempcon = f_contacttill.getValue().format(format);
 
-                        String upsql = "UPDATE PLAYERS SET PLAYER_NAME='" + f_name.getText() + "', DATE_OF_BIRTH='" + f_dob.getText() + "', NATIONALITY='" + f_nat.getText() + "', POSITION='" + f_pos.getText() + "', HEIGHT=" + f_height.getText() + " , WEIGHT=" + f_weight.getText() + " , CONTACT_NO=" + f_contactno.getText() + ", WAGE=" + f_wage.getText() + ", CONTACT_TILL='" + f_contacttill.getText() + "', MARKET_VALUE=" + f_value.getText() + ", BUY_OUT_CLAUSE=" + f_buy.getText() + ", AGENT_NAME='" + f_agname.getText() + "' WHERE PLAYER_ID=" + aid;
-
+                        String upsql = "UPDATE PLAYERS SET PLAYER_NAME='" + f_name.getText() + "', DATE_OF_BIRTH='" + tempdob + "', NATIONALITY='" + f_nat.getText() + "', POSITION='" + f_pos.getText() + "', HEIGHT=" + f_height.getText() + " , WEIGHT=" + f_weight.getText() + " , CONTACT_NO=" + f_contactno.getText() + ", WAGE=" + f_wage.getText() + ", CONTACT_TILL='" + tempcon + "', MARKET_VALUE=" + f_value.getText() + ", BUY_OUT_CLAUSE=" + f_buy.getText() + ", AGENT_NAME='" + f_agname.getText() + "' WHERE PLAYER_ID=" + aid;
+                        // System.out.println(upsql);
                         try {
                             pst = con.prepareStatement(upsql);
                             rs = pst.executeQuery();
@@ -2893,6 +2877,7 @@ public class Main extends Application {
                             superAdminPage(id, "Admin");
                         } catch (SQLException e1) {
                             e1.printStackTrace();
+                            errorAlert("Invalid Input", "Invalid Input", null);
                         }
 
                     });
@@ -3088,7 +3073,6 @@ public class Main extends Application {
         m_delete.setVisible(false);
 
 
-
         boardStaffTable.setOnMouseClicked((MouseEvent event) -> {
                     BoardStaff pObject = boardStaffTable.getSelectionModel().getSelectedItem();
                     //String newSal=sObject.rSal.get(), newName=sObject.name.get();
@@ -3272,6 +3256,15 @@ public class Main extends Application {
         }
 
         return res;
+    }
+
+    public static DatePicker datePickerCreator(double x, double y, double h, double w) {
+        DatePicker temp = new DatePicker();
+        temp.setLayoutX(x);
+        temp.setLayoutY(y);
+        temp.setPrefHeight(h);
+        temp.setPrefWidth(w);
+        return temp;
     }
 }
 
