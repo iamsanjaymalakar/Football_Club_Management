@@ -88,3 +88,48 @@ begin
     end;
     return id;
 end;
+
+
+CREATE OR REPLACE
+FUNCTION teamDraw (teamid in number) return number is
+c1 number;
+begin
+c1:=0;
+for r in (select to_char(m.MATCH_DATE,'DD-MON-YYYY'),m.VENUE,m.OPPONENT,m.TOURNAMENT_NAME,m.STAGE,m.RESULT,wol(m.RESULT) from player_team pt,PLAYER_MATCH pm,matches m where pm.player_id=pt.player_id and pm.match_id=m.match_id and team_id=teamid group by m.MATCH_ID,m.MATCH_DATE,m.VENUE,m.OPPONENT,m.TOURNAMENT_NAME,m.STAGE,m.RESULT order by m.MATCH_DATE)
+loop 
+    if(wol(r.result)='DRAW') then
+        c1:=c1+1;
+    end if;
+end loop;
+return c1;
+end;
+
+
+CREATE OR REPLACE
+FUNCTION teamLoss (teamid in number) return number is
+c1 number;
+begin
+c1:=0;
+for r in (select to_char(m.MATCH_DATE,'DD-MON-YYYY'),m.VENUE,m.OPPONENT,m.TOURNAMENT_NAME,m.STAGE,m.RESULT,wol(m.RESULT) from player_team pt,PLAYER_MATCH pm,matches m where pm.player_id=pt.player_id and pm.match_id=m.match_id and team_id=teamid group by m.MATCH_ID,m.MATCH_DATE,m.VENUE,m.OPPONENT,m.TOURNAMENT_NAME,m.STAGE,m.RESULT order by m.MATCH_DATE)
+loop 
+    if(wol(r.result)='LOSS') then
+        c1:=c1+1;
+    end if;
+end loop;
+return c1;
+end;
+
+
+CREATE OR REPLACE
+FUNCTION teamWin (teamid in number) return number is
+c1 number;
+begin
+c1:=0;
+for r in (select to_char(m.MATCH_DATE,'DD-MON-YYYY'),m.VENUE,m.OPPONENT,m.TOURNAMENT_NAME,m.STAGE,m.RESULT,wol(m.RESULT) from player_team pt,PLAYER_MATCH pm,matches m where pm.player_id=pt.player_id and pm.match_id=m.match_id and team_id=teamid group by m.MATCH_ID,m.MATCH_DATE,m.VENUE,m.OPPONENT,m.TOURNAMENT_NAME,m.STAGE,m.RESULT order by m.MATCH_DATE)
+loop 
+    if(wol(r.result)='WIN') then
+        c1:=c1+1;
+    end if;
+end loop;
+return c1;
+end;
