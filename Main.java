@@ -31,6 +31,10 @@ import javafx.stage.Popup;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
 import java.sql.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -63,6 +67,9 @@ public class Main extends Application {
     public static int superAdminMsgFlag;
     public static TableView<Player_Basic> playerBasicTable;
     public static ObservableList<Player_Basic> playerBasicdata;
+    public static TableView<Member> memberBasicTable;
+    public static ObservableList<Member> memberBasicdata;
+
     public static int index;
     public static TextField tf = textfieldCreator("", 900, 500, 30, 200);
 
@@ -82,11 +89,12 @@ public class Main extends Application {
         cbdata = FXCollections.observableArrayList();
         salUpdatedata = FXCollections.observableArrayList();
         playerBasicdata = FXCollections.observableArrayList();
+        memberBasicdata = FXCollections.observableArrayList();
         index = 0;
         boardMemberSceneFlag = 0;
         //
         try {
-            con = DriverManager.getConnection("jdbc:oracle:thin:@localhost:1521:globaldb", "clubmanagement", "football");
+            con = DriverManager.getConnection("jdbc:oracle:thin:@localhost:1521:ORCL", "shoumik", "shoumik123");
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -121,7 +129,7 @@ public class Main extends Application {
         TextField userName = textfieldCreator("", 737, 91, 26, 189);
         userName.setPromptText("Username");
         userName.clear();
-        userName.setText("brian");
+        //userName.setText("lucian");
         PasswordField passWord = new PasswordField();
         passWord.setLayoutX(955);
         passWord.setLayoutY(91);
@@ -129,7 +137,7 @@ public class Main extends Application {
         passWord.setPrefWidth(189);
         passWord.setEffect(borderGlow);
         passWord.setPromptText("Password");
-        passWord.setText("brian");
+        //passWord.setText("lucian");
         passWord.clear();
         Button login = new Button("Login");
         login.setLayoutX(1173);
@@ -151,7 +159,7 @@ public class Main extends Application {
                         if (userType.equals("Manager")) {
                             managerPage(id);
                         } else if (userType.equals("Player")) {
-                            playerPage(id, "NotAdmin");
+                            playerPage(id,"NotAdmin");
                         } else if (userType.equals("Scout")) {
                             scoutPage(id);
                         } else if (userType.equals("Medical")) {
@@ -163,6 +171,9 @@ public class Main extends Application {
                             } else {
                                 superAdminPage(id, "NotAdmin");
                             }
+                        }
+                        else if (userType.equals("Member")){
+                            memberPage(id);
                         }
                     }
                 }
@@ -198,7 +209,7 @@ public class Main extends Application {
         } catch (SQLException e) {
             errorAlert("Error.", "Error", "Error");
         }
-        System.out.println(mdate + "  " + mopp + "  " + mtname + "  " + mstage);
+        System.out.println(mdate+"  "+mopp+"  "+mtname+"  "+mstage);
 
         Text t1 = textCreator("Next Match in " + mdate + " Days", 935, 151, 31);
         Text t2 = textCreator(mtname, 984, 292, 25);
@@ -365,7 +376,7 @@ public class Main extends Application {
         SortedList<PlayersHome> sort2 = new SortedList<>(filter2);
         sort2.comparatorProperty().bind(tempTable2.comparatorProperty());
         tempTable2.setItems(sort2);
-        medicPane.getChildren().addAll(tempTable2, search2);
+        medicPane.getChildren().addAll(tempTable2,search2);
         medicTab.setContent(medicPane);
         Tab editTab = new Tab();
         editTab.setText("Team");
@@ -373,6 +384,81 @@ public class Main extends Application {
         editPane.setPrefHeight(180);
         editPane.setPrefWidth(200);
         editPane.setStyle("-fx-background-color: #ccfbff");
+        ObservableList<TeamHome> list3 = FXCollections.observableArrayList();
+        TableView<TeamHome> tempTable3 = new TableView<>();
+        tempTable3.setLayoutX(47);
+        tempTable3.setLayoutY(60);
+        tempTable3.setPrefHeight(450);
+        tempTable3.setPrefWidth(920);
+        tempTable3.setEditable(false);
+        TableColumn<TeamHome, Integer> c13 = new TableColumn("ID");
+        TableColumn<TeamHome, String> c23 = new TableColumn("Team Name");
+        TableColumn<TeamHome, String> c33 = new TableColumn("Captain");
+        TableColumn<TeamHome, String> c43 = new TableColumn("Manager");
+        TableColumn<TeamHome, Integer> c53 = new TableColumn("Total Matches");
+        TableColumn<TeamHome, Integer> c63 = new TableColumn("Win");
+        TableColumn<TeamHome, Integer> c73 = new TableColumn("Loss");
+        TableColumn<TeamHome, Integer> c83 = new TableColumn("Draw");
+        c13.setCellValueFactory(new PropertyValueFactory<>("id"));
+        c23.setCellValueFactory(new PropertyValueFactory<>("name"));
+        c33.setCellValueFactory(new PropertyValueFactory<>("captain"));
+        c43.setCellValueFactory(new PropertyValueFactory<>("manager"));
+        c53.setCellValueFactory(new PropertyValueFactory<>("total"));
+        c63.setCellValueFactory(new PropertyValueFactory<>("win"));
+        c73.setCellValueFactory(new PropertyValueFactory<>("loss"));
+        c83.setCellValueFactory(new PropertyValueFactory<>("draw"));
+        c13.setMinWidth(120);
+        c23.setMinWidth(130);
+        c33.setMinWidth(100);
+        c43.setMinWidth(120);
+        c53.setMinWidth(120);
+        c63.setMinWidth(105);
+        c73.setMinWidth(100);
+        c83.setMinWidth(120);
+        tempTable3.getColumns().addAll(c13, c23, c33, c43, c53, c63, c73, c83);
+        //sql
+        sql = "select t.TEAM_ID,t.TEAM_NAME,t.CAPTAIN,(select s.staff_name from staffs s,managers m " +
+                "where s.STAFF_ID=m.STAFF_ID and m.team_id=t.team_id) Manager,(teamWin(t.team_id)+teamLoss(t.team_id)+" +
+                "teamDraw(t.team_id)) Total,teamWin\t(t.team_id) Win,teamLoss(t.team_id) Loss,teamDraw(t.team_id) Draw from teams t";
+        try {
+            pst = con.prepareStatement(sql);
+            rs = pst.executeQuery();
+            list3.clear();
+            while (rs.next()) {
+                list3.add(new TeamHome(new SimpleIntegerProperty(rs.getInt(1)), new SimpleStringProperty(rs.getString(2)), new SimpleStringProperty(rs.getString(3)), new SimpleStringProperty(rs.getString(4)), new SimpleIntegerProperty(rs.getInt(5)), new SimpleIntegerProperty(rs.getInt(6)), new SimpleIntegerProperty(rs.getInt(7)), new SimpleIntegerProperty(rs.getInt(8))));
+            }
+        } catch (SQLException e) {
+            errorAlert("Error", "Error", null);
+        }
+        TextField search3 = textfieldCreator("", 750, 20, 26, 206);
+        search3.clear();
+        search3.setPromptText("Search table");
+        FilteredList<TeamHome> filter3 = new FilteredList<>(list3, flag -> true);
+        search3.textProperty().addListener((observable, oldValue, newValue) -> {
+            filter3.setPredicate(temp -> {
+                if (newValue == null || newValue.isEmpty()) {
+                    return true;
+                }
+                String input = newValue.toLowerCase();
+                if (temp.getName().toLowerCase().contains(input)) {
+                    return true;
+                }
+                if (temp.getCaptain().toLowerCase().contains(input)) {
+                    return true;
+                }
+                if (temp.getManager().toLowerCase().contains(input)) {
+                    return true;
+                }
+                if (String.valueOf(temp.getId()).toLowerCase().contains(input)) {
+                    return true;
+                }
+                return false;
+            });
+        });
+        SortedList<TeamHome> sort3 = new SortedList<>(filter3);
+        sort3.comparatorProperty().bind(tempTable3.comparatorProperty());
+        tempTable3.setItems(sort3);
+        editPane.getChildren().addAll(tempTable3,search3);
         editTab.setContent(editPane);
         tabs.getTabs().addAll(homeTab, medicTab, editTab);
         box.getChildren().addAll(topPane, tabs);
@@ -1380,7 +1466,7 @@ public class Main extends Application {
         playerIcon.setPreserveRatio(true);
         //sql to get the player name
         String name = "";
-        int adminid = 0;
+        int adminid=0;
         String sql = "select PLAYER_NAME from PLAYERS where PLAYER_ID=" + pid;
         try {
             pst = con.prepareStatement(sql);
@@ -1392,7 +1478,8 @@ public class Main extends Application {
             e.printStackTrace();
             errorAlert("Error", "Error", null);
         }
-        if (detector == "Admin") {
+        if(detector=="Admin")
+        {
             sql = "SELECT BMEMBER_ID FROM BOARD_MEMBERS WHERE STILLPRESIDENT(BMEMBER_ID)='YES'";
             try {
                 pst = con.prepareStatement(sql);
@@ -1427,7 +1514,7 @@ public class Main extends Application {
         });
 
 
-        final int superAdminId = adminid;
+        final int superAdminId=adminid;
         Text back = new Text("(Back)");
         back.setLayoutX(1209);
         back.setLayoutY(75);
@@ -1441,12 +1528,15 @@ public class Main extends Application {
             back.setFill(Color.BLACK);
         });
         back.setOnMouseClicked((MouseEvent event) -> {
-            superAdminPage(superAdminId, "Admin");
+            superAdminPage(superAdminId,"Admin");
         });
 
-        if (detector == "NotAdmin") {
+        if(detector=="NotAdmin")
+        {
             topPane.getChildren().addAll(logo, title, playerIcon, playerName, logout);
-        } else if (detector == "Admin") {
+        }
+        else if(detector=="Admin")
+        {
             topPane.getChildren().addAll(logo, title, back, logout);
         }
 
@@ -1489,7 +1579,7 @@ public class Main extends Application {
         //sql
         int cnt = 0, sgoals = 0, sfouls = 0, smp = 0;
         double avgrating = 0;
-        String statsql = "select count(*),SUM(GOALS),SUM(FOULS),SUM(MINUTES_PLAYED),AVG(RATING) from PLAYER_MATCH where PLAYER_ID=" + pid;
+        String statsql = "select count(*),SUM(GOALS),SUM(FOULS),SUM(MINUTES_PLAYED),round(AVG(RATING),2) from PLAYER_MATCH where PLAYER_ID=" + pid;
         try {
             pst = con.prepareStatement(statsql);
             rs = pst.executeQuery();
@@ -1811,7 +1901,7 @@ public class Main extends Application {
                     pst = con.prepareStatement(usql);
                     rs = pst.executeQuery();
                     errorAlert("Success", "Profile updated successfully", null);
-                    playerPage(pid, "NotAdmin");
+                    playerPage(pid,"NotAdmin");
                 } catch (SQLException e) {
                     errorAlert("Error", "Invalid Input", "Invalid input");
                 }
@@ -1830,8 +1920,8 @@ public class Main extends Application {
         req.setOnMouseClicked((MouseEvent event) -> {
             int amount;
             amount = Integer.valueOf(reqWage.getText());
-            String upsql = "UPDATE PLAYERS SET WAGE= " + amount + " WHERE PLAYER_ID=" + pid;
-            String trig = "ALTER TRIGGER SALARYUPDATEPLAYERS ENABLE";
+            String upsql="UPDATE PLAYERS SET WAGE= "+amount+" WHERE PLAYER_ID="+pid;
+            String trig="ALTER TRIGGER SALARYUPDATEPLAYERS ENABLE";
 
             //sql
             try {
@@ -1845,8 +1935,8 @@ public class Main extends Application {
                 pst = con.prepareStatement(upsql);
                 rs = pst.executeQuery();
 
-                errorAlert("Success", "Salary Request", "Your request for salary has been sent to the president!");
-                playerPage(pid, "NotAdmin");
+                confirmAlert("Success", "Salary Request", "Your request for salary has been sent to the president!");
+                playerPage(pid,"NotAdmin");
             } catch (SQLException e) {
                 errorAlert("Error", "Invalid Input", "Invalid input");
             }
@@ -1854,9 +1944,12 @@ public class Main extends Application {
         });
         editPane.getChildren().addAll(nameF, contactF, agentF, t1, t2, t3, wageText, wageAmount, upText, reqWage, req, sub);
         editTab.setContent(editPane);
-        if (detector == "NotAdmin") {
+        if(detector=="NotAdmin")
+        {
             tabs.getTabs().addAll(homeTab, profileTab, statsTab, editTab);
-        } else if (detector == "Admin") {
+        }
+        else if(detector=="Admin")
+        {
             tabs.getTabs().addAll(homeTab, profileTab, statsTab);
         }
 
@@ -2042,7 +2135,7 @@ public class Main extends Application {
                         try {
                             pst = con.prepareStatement(query);
                             rs = pst.executeQuery();
-                            errorAlert("Updated", "Profile updated successfully", null);
+                            confirmAlert("Updated", "Profile updated successfully", null);
                         } catch (SQLException e) {
                             e.printStackTrace();
                             errorAlert("Error", "Invalid input", null);
@@ -2075,6 +2168,15 @@ public class Main extends Application {
         alert.setContentText(content);
         alert.showAndWait();
     }
+
+    public static void confirmAlert(String title, String header, String content) {
+        alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
+
 
 
     public static boolean isAlpha(String name) {
@@ -2187,16 +2289,19 @@ public class Main extends Application {
         int totincome = 0, st_id = 0;
 
         //sql
-        String sql = "SELECT CB.ROLE, C.START_DATE, C.END_DATE, C.BUDGET, C.TOTAL_INCOME FROM BOARD_MEMBERS BM JOIN COMMITTEE_BOARD CB ON BM.BMEMBER_ID=CB.BMEMBER_ID JOIN COMMITTEES C ON CB.COMMITTEE_ID=C.COMMITTEE_ID WHERE BM.BMEMBER_ID=" + id;
+        String sql = "SELECT CB.ROLE, C.START_DATE, C.END_DATE, C.BUDGET, C.TOTAL_INCOME FROM BOARD_MEMBERS BM JOIN COMMITTEE_BOARD CB ON BM.BMEMBER_ID=CB.BMEMBER_ID JOIN COMMITTEES C ON CB.COMMITTEE_ID=C.COMMITTEE_ID WHERE BM.BMEMBER_ID=" + id ;
         try {
             pst = con.prepareStatement(sql);
             rs = pst.executeQuery();
             while (rs.next()) {
                 role = rs.getString(1);
+
                 csdate = rs.getDate(2).toString();
                 cedate = rs.getDate(3).toString();
+
                 budget = rs.getString(4);
                 totincome = rs.getInt(5);
+
             }
         } catch (SQLException e) {
             errorAlert("Error", "Error", null);
@@ -2279,6 +2384,7 @@ public class Main extends Application {
         homePane.setPrefHeight(180);
         homePane.setPrefWidth(200);
         homePane.setStyle("-fx-background-color: #ccfbff");
+
         double perc = (totincome * 1.00) / 300000;
         ProgressBar pb = new ProgressBar(perc);
         pb.setLayoutX(1000);
@@ -2319,15 +2425,15 @@ public class Main extends Application {
         incomeSeries.setName("Income in years");
 
         int count = 1;
-        String bsql = "SELECT * FROM COMMITTEES";
+        String bsql="SELECT * FROM COMMITTEES";
         try {
             pst = con.prepareStatement(bsql);
             rs = pst.executeQuery();
 
             while (rs.next()) {
                 //pslist.add(new PlayerStat(new SimpleStringProperty(rs.getString(1)), new SimpleStringProperty(rs.getString(2)), new SimpleStringProperty(rs.getString(3)), new SimpleStringProperty(rs.getString(4)), new SimpleStringProperty(rs.getString(5)), new SimpleStringProperty(rs.getString(6)), new SimpleStringProperty(rs.getString(7)), new SimpleStringProperty(rs.getString(8)), new SimpleStringProperty(rs.getString(9)), new SimpleStringProperty(rs.getString(10)), new SimpleStringProperty(rs.getString(11))));
-                budgetSeries.getData().add(new XYChart.Data(2010 + count, rs.getInt(4)));
-                incomeSeries.getData().add(new XYChart.Data(2010 + count, rs.getInt(5)));
+                budgetSeries.getData().add(new XYChart.Data(2010+count, rs.getInt(4)));
+                incomeSeries.getData().add(new XYChart.Data(2010+count, rs.getInt(5)));
                 //System.out.println(budgetSeries.getData());
                 count++;
                 //rts.getData().add(new XYChart.Data(i++, rs.getInt(10)));
@@ -2337,10 +2443,10 @@ public class Main extends Application {
         }
         //pstable.setItems(pslist);
         //chart
-        NumberAxis xAxis = new NumberAxis("Year", 2011, 2011 + count - 1, 1);
+        NumberAxis xAxis = new NumberAxis("Year", 2011, 2011+count-1, 1);
         NumberAxis yAxis = new NumberAxis("Budget", 0, 700000, 30000);
         LineChart budgetChart = new LineChart(xAxis, yAxis);
-        budgetChart.getData().addAll(budgetSeries, incomeSeries);
+        budgetChart.getData().addAll(budgetSeries,incomeSeries);
         //xAxis = new NumberAxis("Match", 1, cnt, 1);
         //yAxis = new NumberAxis("Rating", 0, 10, 1);
         //LineChart ratingChart = new LineChart(xAxis, yAxis);
@@ -2348,18 +2454,26 @@ public class Main extends Application {
         budgetChart.setLayoutY(40);
         budgetChart.setPrefHeight(400);
         budgetChart.setPrefWidth(450);
-        if (detector == "Admin") {
+
+        if(detector=="Admin")
+        {
             homePane.getChildren().addAll(t1, t2, t3, t4, t5, t6, t7, t8, t9, pb, budgetChart);
-        } else if (detector == "NotAdmin") {
+        }
+        else if(detector=="NotAdmin")
+        {
             homePane.getChildren().addAll(t1, t2, t3, t4, t5, t7, budgetChart);
         }
+
+
         homeTab.setContent(homePane);
+
         Tab profileTab = new Tab();
         profileTab.setText("Profile");
         AnchorPane profilePane = new AnchorPane();
         profilePane.setPrefHeight(180);
         profilePane.setPrefWidth(200);
         profilePane.setStyle("-fx-background-color: #ccfbff");
+
         comBoardTable = new TableView<ComBoard>();
         comBoardTable.setLayoutX(900);
         comBoardTable.setLayoutY(150);
@@ -2367,22 +2481,28 @@ public class Main extends Application {
         //comBoardTable.setPrefWidth(300);
         comBoardTable.setEditable(false);
         comBoardTable.setManaged(true);
+
         comBoardTable.setPickOnBounds(true);
         TableColumn<ComBoard, String> c1 = new TableColumn("Role");
         TableColumn<ComBoard, String> c2 = new TableColumn("Year");
         TableColumn<ComBoard, String> c3 = new TableColumn("End Year");
         TableColumn<ComBoard, Integer> c4 = new TableColumn("Budget");
         TableColumn<ComBoard, Integer> c5 = new TableColumn("Income");
+
         c1.setCellValueFactory(new PropertyValueFactory<>("role"));
         c2.setCellValueFactory(new PropertyValueFactory<>("sdate"));
         c3.setCellValueFactory(new PropertyValueFactory<>("edate"));
         c4.setCellValueFactory(new PropertyValueFactory<>("budget"));
         c5.setCellValueFactory(new PropertyValueFactory<>("income"));
+
+
         c1.setMinWidth(150);
         c2.setMinWidth(150);
         c3.setMinWidth(200);
         c4.setMinWidth(150);
         c5.setMinWidth(150);
+
+
         sql = "SELECT CB.ROLE, to_char(C.START_DATE, 'YYYY'), C.END_DATE, C.BUDGET, C.TOTAL_INCOME FROM BOARD_MEMBERS BM JOIN COMMITTEE_BOARD CB ON BM.BMEMBER_ID=CB.BMEMBER_ID JOIN COMMITTEES C ON CB.COMMITTEE_ID=C.COMMITTEE_ID WHERE BM.BMEMBER_ID= " + id;
         try {
             pst = con.prepareStatement(sql);
@@ -2391,12 +2511,17 @@ public class Main extends Application {
             while (rs.next()) {
                 cbdata.add(new ComBoard(new SimpleStringProperty(rs.getString(1)), new SimpleStringProperty(rs.getString(2)), new SimpleStringProperty(rs.getString(3)), new SimpleIntegerProperty(rs.getInt(4)), new SimpleIntegerProperty(rs.getInt(5))));
             }
+
+
         } catch (SQLException e) {
             errorAlert("Error", "Error", null);
         }
         Text t10 = textCreator("History", 1000, 120, "System Bold", 35);
         comBoardTable.setItems(cbdata);
         comBoardTable.getColumns().addAll(c1, c2);
+
+
+
         Text t11 = textCreator("Address  :", 30, 160, "System Bold", 30);
         Text t12 = textCreator(address, 215, 160, 25);
         Text t13 = textCreator("Profession :", 30, 210, "System Bold", 30);
@@ -2410,6 +2535,7 @@ public class Main extends Application {
         Text t21 = textCreator("(" + csdate + " - " + cedate + ")", 535, 120, "System Bold Italic", 15);
         profilePane.getChildren().addAll(t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, comBoardTable);
         profileTab.setContent(profilePane);
+
         Tab editTab = new Tab();
         editTab.setText("Edit Profile");
         AnchorPane editPane = new AnchorPane();
@@ -2425,42 +2551,49 @@ public class Main extends Application {
         t3 = textCreator("Address : ", 83, 293, 28);
         t4 = textCreator("Contact no :", 83, 391, 28);
         Button sub = new Button("Submit");
-        sub.setLayoutX(350);
-        sub.setLayoutY(500);
+        sub.setLayoutX(500);
+        sub.setLayoutY(410);
         sub.setOnMouseClicked((MouseEvent event) -> {
             String tname, tprof, tcon, tadd;
+
             tname = nameF.getText();
             tprof = proF.getText();
             tadd = addF.getText();
             tcon = contactF.getText();
             System.out.println(tname + " " + tprof + " " + tadd + " " + tcon);
+
             boolean nameA = isAlpha(tname);
             boolean conN = tcon.chars().allMatch(Character::isDigit);
-            if (nameA && conN) {
-                String ssql = "UPDATE BOARD_MEMBERS SET PROFESSION='" + tprof + "' WHERE BMEMBER_ID=" + id;
-                try {
-                    pst = con.prepareStatement(ssql);
-                    rs = pst.executeQuery();
-                    System.out.println("first passed");
-                } catch (SQLException e) {
-                    errorAlert("Error", "Error", null);
-                    e.printStackTrace();
-                }
-                String usql = "UPDATE STAFFS SET STAFF_NAME='" + tname + "' ,STAFF_ADDRESS='" + tadd + "' , CONTACT_NO=" + tcon + " WHERE STAFF_ID=" + id;
-                try {
-                    pst = con.prepareStatement(usql);
-                    rs = pst.executeQuery();
-                    System.out.println("second passed");
-                    superAdminMsgFlag = 4;
-                    superAdminPage(id, detector);
-                    errorAlert("Success", "Profile updated successfully", null);
-                    //scoutPage(sid);
-                } catch (SQLException e) {
-                    errorAlert("Error", "Error", "Invalid input");
-                }
-            } else {
-                errorAlert("Error", "Invalid Input", "Invalid input");
+
+
+            //if (nameA && conN) {
+            String ssql = "UPDATE BOARD_MEMBERS SET PROFESSION='" + tprof + "' WHERE BMEMBER_ID=" + id;
+
+            try {
+                pst = con.prepareStatement(ssql);
+
+                rs = pst.executeQuery();
+                System.out.println("first passed");
+
+            } catch (SQLException e) {
+                errorAlert("Error", "Error", null);
+                e.printStackTrace();
             }
+            String usql = "UPDATE STAFFS SET STAFF_NAME='" + tname + "' ,STAFF_ADDRESS='" + tadd + "' , CONTACT_NO=" + tcon + " WHERE STAFF_ID=" + id;
+            try {
+                pst = con.prepareStatement(usql);
+                rs = pst.executeQuery();
+                System.out.println("second passed");
+                superAdminMsgFlag = 4;
+                superAdminPage(id, detector);
+                confirmAlert("Success", "Profile updated successfully", null);
+                //scoutPage(sid);
+            } catch (SQLException e) {
+                errorAlert("Error", "Error", "Invalid input");
+            }
+            /*} else {
+                errorAlert("Error", "Invalid Input", "Invalid input");
+            }*/
         });
         if (superAdminMsgFlag == 4) {
             selectionModel.select(profileTab);
@@ -2474,42 +2607,55 @@ public class Main extends Application {
         msgPane.setPrefHeight(180);
         msgPane.setPrefWidth(200);
         msgPane.setStyle("-fx-background-color: #ccfbff");
+
+
         Text request = textCreator("Salary Requests", 200, 80, "System Bold", 30);
+
         salUpdateTable = new TableView<SalaryUpdate>();
         salUpdateTable.setLayoutX(200);
         salUpdateTable.setLayoutY(120);
         salUpdateTable.setPrefHeight(240);
         //comBoardTable.setPrefWidth(300);
         salUpdateTable.setEditable(false);
+
         Button approve = new Button("Approve");
         approve.setLayoutX(850);
         approve.setLayoutY(400);
         approve.setMinSize(80, 20);
         //approve.setStyle("-fx-background-color: #39e600; -fx-border-color: #33cc00; -fx-border-width: 2px;");
+
         //approve.setMaxWidth(100);
         //approve.setPrefHeight(20);
+
         Button cancel = new Button("Cancel");
         cancel.setLayoutX(950);
         cancel.setLayoutY(400);
         cancel.setMinSize(80, 20);
         //approve.setMinWidth(100);
         //approve.setPrefHeight(20);
+
+
         //salUpdateTable.setPickOnBounds(true);
         TableColumn<SalaryUpdate, String> c11 = new TableColumn("Name");
         TableColumn<SalaryUpdate, String> c21 = new TableColumn("Type");
         TableColumn<SalaryUpdate, String> c31 = new TableColumn("Previous Wage");
         TableColumn<SalaryUpdate, String> c41 = new TableColumn("Requested Wage");
         TableColumn<SalaryUpdate, String> c51 = new TableColumn("Date");
+
         c11.setCellValueFactory(new PropertyValueFactory<>("name"));
         c21.setCellValueFactory(new PropertyValueFactory<>("type"));
         c31.setCellValueFactory(new PropertyValueFactory<>("pSal"));
         c41.setCellValueFactory(new PropertyValueFactory<>("rSal"));
         c51.setCellValueFactory(new PropertyValueFactory<>("date"));
+
+
         c11.setMinWidth(150);
         c21.setMinWidth(150);
         c31.setMinWidth(200);
         c41.setMinWidth(200);
         c51.setMinWidth(150);
+
+
         sql = "SELECT NAME, TYPE, PREV_SALARY, REQ_SALARY, REQ_DATE FROM SALARY_UPDATE";
         try {
             pst = con.prepareStatement(sql);
@@ -2518,6 +2664,8 @@ public class Main extends Application {
             while (rs.next()) {
                 salUpdatedata.add(new SalaryUpdate(new SimpleStringProperty(rs.getString(1)), new SimpleStringProperty(rs.getString(2)), new SimpleStringProperty(rs.getString(3)), new SimpleStringProperty(rs.getString(4)), new SimpleStringProperty(rs.getString(5))));
             }
+
+
         } catch (SQLException e) {
             errorAlert("Error", "Error", null);
         }
@@ -2525,6 +2673,8 @@ public class Main extends Application {
         salUpdateTable.getColumns().addAll(c11, c21, c31, c41, c51);
         salUpdateTable.setManaged(true);
         //salUpdateTable.setEditable(true);
+
+
         salUpdateTable.setOnMouseClicked((MouseEvent event) -> {
                     SalaryUpdate sObject = salUpdateTable.getSelectionModel().getSelectedItem();
                     String newSal = sObject.rSal.get(), newName = sObject.name.get();
@@ -2539,6 +2689,7 @@ public class Main extends Application {
                     } catch (SQLException e) {
                         e.printStackTrace();
                     }
+
                     approve.setOnMouseClicked((MouseEvent e) -> {
                         String upsql = "UPDATE PLAYERS SET WAGE=" + newSal + " WHERE PLAYER_NAME= '" + newName + "'";
                         String desql = "DELETE FROM SALARY_UPDATE WHERE NAME='" + newName + "'";
@@ -2668,8 +2819,8 @@ public class Main extends Application {
         c133.setMinWidth(100);
 
 
-        sql = "SELECT player_id,player_name,to_char(date_of_birth,'DD-MM-YYYY'),NATIONALITY,POSITION,HEIGHT,weight,CONTACT_NO," +
-                "wage,to_char(CONTACT_TILL,'DD-MM-YYYY'),MARKET_VALUE,BUY_OUT_CLAUSE,AGENT_NAME FROM PLAYERS";
+        sql = "SELECT player_id,player_name,to_char(date_of_birth,'DD-MM-YYYY'),NATIONALITY,POSITION,HEIGHT,weight,CONTACT_NO,wage,to_char(CONTACT_TILL,'DD-MM-YYYY'),MARKET_VALUE,BUY_OUT_CLAUSE,AGENT_NAME FROM PLAYERS";
+
         try {
             pst = con.prepareStatement(sql);
             rs = pst.executeQuery();
@@ -2681,7 +2832,6 @@ public class Main extends Application {
 
 
         } catch (SQLException e) {
-            e.printStackTrace();
             errorAlert("Error", "Error", null);
         }
         playerBasicTable.setItems(playerBasicdata);
@@ -2699,15 +2849,6 @@ public class Main extends Application {
                 }
                 String input = newValue.toLowerCase();
                 if (temp.getName().toLowerCase().contains(input)) {
-                    return true;
-                }
-                if (temp.getAgname().toLowerCase().contains(input)) {
-                    return true;
-                }
-                if (temp.getPos().toLowerCase().contains(input)) {
-                    return true;
-                }
-                if (temp.getNat().toLowerCase().contains(input)) {
                     return true;
                 }
                 return false;
@@ -2736,10 +2877,14 @@ public class Main extends Application {
         TextField f_value = textfieldCreatorNew("Market Value", 1050, 360, 15, 80);
         TextField f_agname = textfieldCreatorNew("Agent Name", 1150, 360, 15, 100);
 
+
         System.out.println(index);
         index++;
         add.setOnMouseClicked((MouseEvent event) -> {
                     String aname, adob, anat, apos, aheight, aweight, acontact, avalue, aagname, awage, acontacttill, abuy;
+                    DateTimeFormatter format = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
+                    adob = f_dob.getValue().format(format);
+                    acontacttill = f_contacttill.getValue().format(format);
                     aname = f_name.getText();
                     //adob = f_dob.getText();
                     anat = f_nat.getText();
@@ -2753,7 +2898,7 @@ public class Main extends Application {
                     avalue = f_value.getText();
                     aagname = f_agname.getText();
 
-                   /* String isql = "INSERT INTO PLAYERS (PLAYER_ID, PLAYER_NAME, DATE_OF_BIRTH, NATIONALITY, POSITION, HEIGHT, WEIGHT, CONTACT_NO, WAGE, CONTACT_TILL, MARKET_VALUE, BUY_OUT_CLAUSE, AGENT_NAME) VALUES (" + index + ", '" + aname + "', '" + adob + "' , '" + anat + "', '" + apos + "', '" + aheight + "', '" + aweight + "', '" + acontact + "', '" + awage + "', '" + acontacttill + "', '" + avalue + "', '" + abuy + "', '" + aagname + "')";
+                    String isql = "INSERT INTO PLAYERS (PLAYER_ID, PLAYER_NAME, DATE_OF_BIRTH, NATIONALITY, POSITION, HEIGHT, WEIGHT, CONTACT_NO, WAGE, CONTACT_TILL, MARKET_VALUE, BUY_OUT_CLAUSE, AGENT_NAME) VALUES (" + index + ", '" + aname + "', '" + adob + "' , '" + anat + "', '" + apos + "', '" + aheight + "', '" + aweight + "', '" + acontact + "', '" + awage + "', '" + acontacttill + "', '" + avalue + "', '" + abuy + "', '" + aagname + "')";
                     try {
                         pst = con.prepareStatement(isql);
                         rs = pst.executeQuery();
@@ -2761,7 +2906,7 @@ public class Main extends Application {
                         superAdminPage(id, "Admin");
                     } catch (SQLException e) {
                         e.printStackTrace();
-                    }*/
+                    }
                 }
 
         );
@@ -2779,7 +2924,7 @@ public class Main extends Application {
         view.setLayoutY(2);
         view.setVisible(false);
 
-        playerPane.setOnMouseClicked((MouseEvent event) -> {
+        playerPane.setOnMouseClicked((MouseEvent event)-> {
             edit.setVisible(false);
             delete.setVisible(false);
             view.setVisible(false);
@@ -2797,8 +2942,6 @@ public class Main extends Application {
             f_buy.clear();
             f_value.clear();
             f_agname.clear();
-
-
         });
 
         playerBasicTable.setOnMouseClicked((MouseEvent event) -> {
@@ -2835,7 +2978,7 @@ public class Main extends Application {
                     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
                     LocalDate Date = LocalDate.parse(adob, formatter);
                     f_dob.setValue(Date);
-                    f_dob.setPromptText("dd MM yyy");
+                    //f_dob.setPromptText("dd MM yyy");
                     f_nat.setText(anat);
                     f_pos.setText(apos);
                     f_height.setText(aheight);
@@ -2916,11 +3059,11 @@ public class Main extends Application {
         teamPane.setPrefHeight(180);
         teamPane.setPrefWidth(200);
         teamPane.setStyle("-fx-background-color: #ccfbff");
-        Text teams = textCreator("Teams", 100, 60, "System Bold", 30);
+        Text teams = textCreator("Teams", 60, 60, "System Bold", 30);
         table = new TableView<Team>();
-        table.setLayoutX(100);
+        table.setLayoutX(60);
         table.setLayoutY(100);
-        table.setPrefHeight(380);
+        table.setPrefHeight(320);
         table.setPrefWidth(300);
         TableColumn<Team, Integer> c14 = new TableColumn("Id");
         TableColumn<Team, String> c24 = new TableColumn("Team Name");
@@ -2947,6 +3090,11 @@ public class Main extends Application {
         updateTable();
         table.getColumns().addAll(c14, c24);
         //Text managerName=textCreator(" ", 800, 200, 25);
+        PieChart pc = new PieChart();
+        pc.setLayoutX(800);
+        pc.setLayoutY(40);
+        pc.setPrefHeight(400);
+        pc.setPrefWidth(520);
 
         table.setOnMouseClicked((MouseEvent e) -> {
             //Team tObject = table.getSelectionModel().getSelectedItem();
@@ -2970,20 +3118,49 @@ public class Main extends Application {
                 e1.printStackTrace();
             }
             System.out.println(capName);
+            int win=0,draw=0,loss=0,total=0;
+            String datasql="SELECT TEAMWIN("+tableIndex+"), TEAMDRAW("+tableIndex+"), TEAMLOSS("+tableIndex+") FROM DUAL";
+            try{
+                pst= con.prepareStatement(datasql);
+                rs= pst.executeQuery();
+                while(rs.next())
+                {
+                    win=rs.getInt(1);
+                    draw=rs.getInt(1);
+                    loss=rs.getInt(1);
+                    total=win+draw+loss;
 
-            Text managerNameText = textCreator(managerName, 800, 150, 25);
-            Text scoutNameText = textCreator(scoutName, 800, 190, 25);
-            Text medicNameText = textCreator(medicName, 800, 230, 25);
-            Text capNameText = textCreator(capName, 800, 270, 25);
+                }
 
-            Text manager = textCreator("Manager      :", 600, 150, "System Bold", 25);
-            Text scout = textCreator("Scout        :", 600, 190, "System Bold", 25);
-            Text medic = textCreator("Medical Chief:", 600, 230, "System Bold", 25);
-            Text captain = textCreator("Captain      :", 600, 270, "System Bold", 25);
+            } catch (SQLException e1) {
+                e1.printStackTrace();
+            }
+            pc.getData().clear();
+            double winp= ((double)win/(double)total)*100;
+            double lossp=((double)loss/(double)total)*100;
+            double drawp=((double)draw/(double)total)*100;
+            winp= Math.round(winp);
+            lossp=Math.round(lossp);
+            drawp=Math.round(drawp);
+            System.out.println(total+"  "+winp+"  "+lossp+"  "+drawp);
+            PieChart.Data slice1 = new PieChart.Data("Win (" + String.valueOf(winp) + "%)", win);
+            PieChart.Data slice2 = new PieChart.Data("Draw (" + String.valueOf(drawp) + "%)", draw);
+            PieChart.Data slice3 = new PieChart.Data("Loss (" + String.valueOf(lossp) + "%)", loss);
+            pc.getData().addAll(slice1, slice2, slice3);
+
+            Text managerNameText = textCreator(managerName, 600, 150, 25);
+            Text scoutNameText = textCreator(scoutName, 600, 190, 25);
+            Text medicNameText = textCreator(medicName, 600, 230, 25);
+            Text capNameText = textCreator(capName, 600, 270, 25);
+
+            Text manager = textCreator("Manager      :", 400, 150, "System Bold", 25);
+            Text scout = textCreator("Scout        :", 400, 190, "System Bold", 25);
+            Text medic = textCreator("Medical Chief:", 400, 230, "System Bold", 25);
+            Text captain = textCreator("Captain      :", 400, 270, "System Bold", 25);
 
 
             teamPane.getChildren().clear();
-            teamPane.getChildren().addAll(table, teams, managerNameText, scoutNameText, medicNameText, capNameText, manager, scout, medic, captain);
+            teamPane.getChildren().addAll(table, teams, managerNameText, scoutNameText, medicNameText, capNameText, manager, scout, medic, captain,pc);
 
 
         });
@@ -3073,6 +3250,7 @@ public class Main extends Application {
         m_delete.setVisible(false);
 
 
+
         boardStaffTable.setOnMouseClicked((MouseEvent event) -> {
                     BoardStaff pObject = boardStaffTable.getSelectionModel().getSelectedItem();
                     //String newSal=sObject.rSal.get(), newName=sObject.name.get();
@@ -3160,9 +3338,433 @@ public class Main extends Application {
         });
     }
 
+    public static void memberPage(int id)
+    {
+        String name="", address="", contact="", email="",memType="", validDate="";
+        String sql="SELECT MEMBER_ID, MEMBER_NAME, MEMBER_ADDRESS, CONTACT_NO, EMAIL, MEMBERSHIP_TYPE, TO_CHAR(VALID_TILL,'dd-MM-yyyy') FROM MEMBERS WHERE MEMBER_ID="+id;
+        try{
+            pst=con.prepareStatement(sql);
+            rs=pst.executeQuery();
+            memberBasicdata.clear();
+            while(rs.next())
+            {
+                memberBasicdata.add(new Member(new SimpleIntegerProperty(rs.getInt(1)), new SimpleStringProperty(rs.getString(2)), new SimpleStringProperty(rs.getString(3)), new SimpleIntegerProperty(rs.getInt(4)), new SimpleStringProperty(rs.getString(5)), new SimpleStringProperty(rs.getString(6)), new SimpleStringProperty(rs.getString(7))));
+
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        name=memberBasicdata.get(0).name.get();
+        address=memberBasicdata.get(0).address.get();
+        contact=String.valueOf(memberBasicdata.get(0).contact.get());
+        email=memberBasicdata.get(0).email.get();
+        memType=memberBasicdata.get(0).memType.get();
+        validDate=String.valueOf(memberBasicdata.get(0).date.get());
+        VBox box = new VBox();
+        box.setPrefHeight(680);
+        box.setPrefWidth(1300);
+        box.setStyle("-fx-background-color: white");
+        box.getStylesheets().add(Main.class.getResource("table.css").toExternalForm());
+        AnchorPane topPane = new AnchorPane();
+        topPane.setPrefHeight(125);
+        topPane.setPrefWidth(1300);
+        topPane.setStyle("-fx-background-color: white");
+        Image logoImage = new Image("logo.png");
+        ImageView logo = new ImageView(logoImage);
+        logo.setFitWidth(125);
+        logo.setFitHeight(126);
+        logo.setPickOnBounds(true);
+        logo.setPreserveRatio(true);
+        Text title = new Text("Clubname");
+        title.setLayoutX(143);
+        title.setLayoutY(83);
+        title.setFont(new Font(51));
+        Image pimg = new Image("superAdminIcon1.jpg");
+        ImageView memberIcon = new ImageView(pimg);
+        memberIcon.setFitHeight(138);
+        memberIcon.setFitWidth(200);
+        memberIcon.setLayoutX(945);
+        memberIcon.setLayoutY(15);
+        memberIcon.setPickOnBounds(true);
+        memberIcon.setPreserveRatio(true);
+        //sql to get the player name
+        Text memberName = new Text(name);
+        memberName.setLayoutX(1095);
+        memberName.setLayoutY(64);
+        memberName.setFont(new Font("System Bold", 21));
+        Text logout = new Text("(Logout)");
+        logout.setLayoutX(1209);
+        logout.setLayoutY(94);
+        logout.setFont(new Font("System Bold Italic", 17));
+        logout.setOnMouseEntered((MouseEvent event) -> {
+            logout.setFont(new Font("System Bold Italic", 20));
+            logout.setFill(Color.DARKGRAY);
+        });
+        logout.setOnMouseExited((MouseEvent event) -> {
+            logout.setFont(new Font("System Bold Italic", 17));
+            logout.setFill(Color.BLACK);
+        });
+        logout.setOnMouseClicked((MouseEvent event) -> {
+            loginPage();
+        });
+        topPane.getChildren().addAll(logo, title, memberIcon, logout, memberName);
+
+
+        TabPane tabs = new TabPane();
+        tabs.setPrefHeight(634);
+        tabs.setPrefWidth(1300);
+        tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        Tab homeTab = new Tab();
+        homeTab.setText("Home");
+        AnchorPane homePane = new AnchorPane();
+        homePane.setPrefHeight(180);
+        homePane.setPrefWidth(200);
+        homePane.setStyle("-fx-background-color: #ccfbff");
+
+        ObservableList<TeamHome> list3 = FXCollections.observableArrayList();
+        TableView<TeamHome> tempTable3 = new TableView<>();
+        tempTable3.setLayoutX(60);
+        tempTable3.setLayoutY(60);
+        tempTable3.setPrefHeight(450);
+        tempTable3.setPrefWidth(350);
+        tempTable3.setEditable(false);
+        TableColumn<TeamHome, Integer> c13 = new TableColumn("ID");
+        TableColumn<TeamHome, String> c23 = new TableColumn("Team Name");
+        TableColumn<TeamHome, String> c33 = new TableColumn("Captain");
+        TableColumn<TeamHome, String> c43 = new TableColumn("Manager");
+        TableColumn<TeamHome, Integer> c53 = new TableColumn("Total Matches");
+        TableColumn<TeamHome, Integer> c63 = new TableColumn("Win");
+        TableColumn<TeamHome, Integer> c73 = new TableColumn("Loss");
+        TableColumn<TeamHome, Integer> c83 = new TableColumn("Draw");
+        c13.setCellValueFactory(new PropertyValueFactory<>("id"));
+        c23.setCellValueFactory(new PropertyValueFactory<>("name"));
+        c33.setCellValueFactory(new PropertyValueFactory<>("captain"));
+        c43.setCellValueFactory(new PropertyValueFactory<>("manager"));
+        c53.setCellValueFactory(new PropertyValueFactory<>("total"));
+        c63.setCellValueFactory(new PropertyValueFactory<>("win"));
+        c73.setCellValueFactory(new PropertyValueFactory<>("loss"));
+        c83.setCellValueFactory(new PropertyValueFactory<>("draw"));
+        c13.setMinWidth(120);
+        c23.setMinWidth(130);
+        c33.setMinWidth(100);
+        c43.setMinWidth(120);
+        c53.setMinWidth(120);
+        c63.setMinWidth(105);
+        c73.setMinWidth(100);
+        c83.setMinWidth(120);
+        tempTable3.getColumns().addAll(c23, c33, c43);
+        //sql
+        sql = "select t.TEAM_ID,t.TEAM_NAME,t.CAPTAIN,(select s.staff_name from staffs s,managers m " +
+                "where s.STAFF_ID=m.STAFF_ID and m.team_id=t.team_id) Manager,(teamWin(t.team_id)+teamLoss(t.team_id)+" +
+                "teamDraw(t.team_id)) Total,teamWin\t(t.team_id) Win,teamLoss(t.team_id) Loss,teamDraw(t.team_id) Draw from teams t";
+        try {
+            pst = con.prepareStatement(sql);
+            rs = pst.executeQuery();
+            list3.clear();
+            while (rs.next()) {
+                list3.add(new TeamHome(new SimpleIntegerProperty(rs.getInt(1)), new SimpleStringProperty(rs.getString(2)), new SimpleStringProperty(rs.getString(3)), new SimpleStringProperty(rs.getString(4)), new SimpleIntegerProperty(rs.getInt(5)), new SimpleIntegerProperty(rs.getInt(6)), new SimpleIntegerProperty(rs.getInt(7)), new SimpleIntegerProperty(rs.getInt(8))));
+            }
+        } catch (SQLException e) {
+            errorAlert("Error", "Error", null);
+        }
+        tempTable3.setItems(list3);
+        PieChart pc = new PieChart();
+        pc.setLayoutX(700);
+        pc.setLayoutY(70);
+        pc.setPrefHeight(420);
+        pc.setPrefWidth(580);
+
+        tempTable3.setOnMouseClicked((MouseEvent event)->{
+            TeamHome object = tempTable3.getSelectionModel().getSelectedItem();
+            int total= object.total.get();
+            int win = object.win.get();
+            int loss= object.loss.get();
+            int draw=object.draw.get();
+            pc.getData().clear();
+
+            double winp= ((double)win/(double)total)*100;
+            double lossp=((double)loss/(double)total)*100;
+            double drawp=((double)draw/(double)total)*100;
+            winp= Math.round(winp);
+            lossp=Math.round(lossp);
+            drawp=Math.round(drawp);
+            System.out.println(total+"  "+winp+"  "+lossp+"  "+drawp);
+            PieChart.Data slice1 = new PieChart.Data("Win (" + String.valueOf(winp) + "%)", win);
+            PieChart.Data slice2 = new PieChart.Data("Draw (" + String.valueOf(drawp) + "%)", draw);
+            PieChart.Data slice3 = new PieChart.Data("Loss (" + String.valueOf(lossp) + "%)", loss);
+            pc.getData().addAll(slice1, slice2, slice3);
+        });
+
+        homePane.getChildren().addAll(tempTable3, pc);
+
+        homeTab.setContent(homePane);
+
+        Tab profileTab = new Tab();
+        profileTab.setText("Profile");
+        AnchorPane profilePane = new AnchorPane();
+        profilePane.setPrefHeight(180);
+        profilePane.setPrefWidth(200);
+        profilePane.setStyle("-fx-background-color: #ccfbff");
+
+        Text tName= textCreator("Name        :", 60,80, "System Bold", 30);
+        Text tAddress= textCreator("Address      :", 60, 130, "System Bold", 30);
+        Text tContact= textCreator("Contact No.  :", 60, 180, "System Bold", 30);
+        Text tEmail= textCreator("Email Address :", 60, 230, "System Bold", 30);
+        Text memName= textCreator(name, 300, 80, 25);
+        Text memAddress= textCreator(address, 300, 130, 25);
+        Text memContact= textCreator(contact, 300, 180, 25);
+        Text memEmail= textCreator(email, 300, 230, 25);
+        Text Type=textCreator("You are our "+memType+"  Member!", 60, 270, 20);
+        Text msg = textCreator("*Your membershir is valid till "+ validDate, 60, 300, 20);
+        System.out.println(address);
+
+        profilePane.getChildren().addAll(tName, tAddress, tContact, tEmail, memName, memAddress, memContact, memEmail, Type, msg);
+        profileTab.setContent(profilePane);
+
+        Tab newsTab= new Tab("News");
+        AnchorPane newsPane=new AnchorPane();
+        newsPane.setPrefHeight(180);
+        newsPane.setPrefWidth(200);
+        newsPane.setStyle("-fx-background-color: #ccfbff");
+
+        Image bigNews = new Image("laligaowner.png");
+        ImageView bigNewsIcon = new ImageView(bigNews);
+        bigNewsIcon.setFitHeight(250);
+        bigNewsIcon.setFitWidth(480);
+        bigNewsIcon.setLayoutX(50);
+        bigNewsIcon.setLayoutY(200);
+        bigNewsIcon.setPickOnBounds(true);
+        bigNewsIcon.setPreserveRatio(true);
+        bigNewsIcon.setOnMouseEntered((MouseEvent event)->{
+            bigNewsIcon.setFitHeight(270);
+            bigNewsIcon.setFitWidth(500);
+        });
+        bigNewsIcon.setOnMouseExited((MouseEvent event)->{
+            bigNewsIcon.setFitHeight(250);
+            bigNewsIcon.setFitWidth(480);
+        });
+
+        bigNewsIcon.setOnMouseClicked((MouseEvent event)->{
+            try {
+                String urlString="www.marca.com/en/football/spanish-football/2018/01/15/5a5ce164ca47416f5b8b458c.html";
+                Process p = Runtime.getRuntime().exec("rundll32"+" url.dll,FileProtocolHandler"+" http://"+urlString);
+            }
+            catch (MalformedURLException e) {
+                // new URL() failed
+                // ...
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+
+        Image neymarNews = new Image("neymarnews.png");
+        ImageView neymarNewsIcon = new ImageView(neymarNews);
+        neymarNewsIcon.setFitHeight(250);
+        neymarNewsIcon.setFitWidth(480);
+        neymarNewsIcon.setLayoutX(540);
+        neymarNewsIcon.setLayoutY(200);
+        neymarNewsIcon.setPickOnBounds(true);
+        neymarNewsIcon.setPreserveRatio(true);
+        neymarNewsIcon.setOnMouseEntered((MouseEvent event)->{
+            neymarNewsIcon.setFitHeight(270);
+            neymarNewsIcon.setFitWidth(500);
+        });
+        neymarNewsIcon.setOnMouseExited((MouseEvent event)->{
+            neymarNewsIcon.setFitHeight(250);
+            neymarNewsIcon.setFitWidth(480);
+        });
+
+        neymarNewsIcon.setOnMouseClicked((MouseEvent event)->{
+            try {
+                String urlString="www.goal.com/en/lists/costa-van-dijk-and-the-top-completed-january-2018-transfer/1xpdflmb73qk41213vdrq1silg";
+                Process p = Runtime.getRuntime().exec("rundll32"+" url.dll,FileProtocolHandler"+" http://"+urlString);
+            }
+            catch (MalformedURLException e) {
+                // new URL() failed
+                // ...
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+
+        Image zidaneNews = new Image("zidanenews.png");
+        ImageView zidaneNewsIcon = new ImageView(zidaneNews);
+        zidaneNewsIcon.setFitHeight(250);
+        zidaneNewsIcon.setFitWidth(480);
+        zidaneNewsIcon.setLayoutX(795);
+        zidaneNewsIcon.setLayoutY(200);
+        zidaneNewsIcon.setPickOnBounds(true);
+        zidaneNewsIcon.setPreserveRatio(true);
+        zidaneNewsIcon.setOnMouseEntered((MouseEvent event)->{
+            zidaneNewsIcon.setFitHeight(270);
+            zidaneNewsIcon.setFitWidth(500);
+        });
+        zidaneNewsIcon.setOnMouseExited((MouseEvent event)->{
+            zidaneNewsIcon.setFitHeight(250);
+            zidaneNewsIcon.setFitWidth(480);
+        });
+
+        zidaneNewsIcon.setOnMouseClicked((MouseEvent event)->{
+            try {
+                String urlString="www.goal.com/en/lists/conte-low-pochettino-and-the-coaches-who-could-replace-zidane-at-/1buu7i6nrf3p1jvbg461pfhcj";
+                Process p = Runtime.getRuntime().exec("rundll32"+" url.dll,FileProtocolHandler"+" http://"+urlString);
+            }
+            catch (MalformedURLException e) {
+                // new URL() failed
+                // ...
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+
+        Image kaneNews = new Image("kanenews.png");
+        ImageView kaneNewsIcon = new ImageView(kaneNews);
+        kaneNewsIcon.setFitHeight(250);
+        kaneNewsIcon.setFitWidth(480);
+        kaneNewsIcon.setLayoutX(1050);
+        kaneNewsIcon.setLayoutY(200);
+        kaneNewsIcon.setPickOnBounds(true);
+        kaneNewsIcon.setPreserveRatio(true);
+        kaneNewsIcon.setOnMouseEntered((MouseEvent event)->{
+            kaneNewsIcon.setFitHeight(270);
+            kaneNewsIcon.setFitWidth(500);
+        });
+        kaneNewsIcon.setOnMouseExited((MouseEvent event)->{
+            kaneNewsIcon.setFitHeight(250);
+            kaneNewsIcon.setFitWidth(480);
+        });
+
+        kaneNewsIcon.setOnMouseClicked((MouseEvent event)->{
+            try {
+                String urlString="www.goal.com/en/lists/premier-league-team-of-the-week-kane-breaks-another-record-as-ox-/1oaui61dtsalx1k3yjv3fhnoyj";
+                Process p = Runtime.getRuntime().exec("rundll32"+" url.dll,FileProtocolHandler"+" http://"+urlString);
+            }
+            catch (MalformedURLException e) {
+                // new URL() failed
+                // ...
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+
+
+        Image marca = new Image("marcalogo.png");
+        ImageView marcaIcon = new ImageView(marca);
+        marcaIcon.setFitHeight(50);
+        marcaIcon.setFitWidth(150);
+        marcaIcon.setLayoutX(90);
+        marcaIcon.setLayoutY(80);
+        marcaIcon.setPickOnBounds(true);
+        marcaIcon.setPreserveRatio(true);
+        marcaIcon.setOnMouseEntered((MouseEvent event)->{
+            marcaIcon.setFitHeight(70);
+            marcaIcon.setFitWidth(170);
+        });
+        marcaIcon.setOnMouseExited((MouseEvent event)->{
+            marcaIcon.setFitHeight(50);
+            marcaIcon.setFitWidth(150);
+        });
+
+        marcaIcon.setOnMouseClicked((MouseEvent event)->{
+            try {
+                String urlString="www.marca.com/en/";
+                Process p = Runtime.getRuntime().exec("rundll32"+" url.dll,FileProtocolHandler"+" http://"+urlString);
+            }
+            catch (MalformedURLException e) {
+                // new URL() failed
+                // ...
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+
+        Image goal = new Image("goallogo.png");
+        ImageView goalIcon = new ImageView(goal);
+        goalIcon.setFitHeight(80);
+        goalIcon.setFitWidth(250);
+        goalIcon.setLayoutX(400);
+        goalIcon.setLayoutY(65);
+        goalIcon.setPickOnBounds(true);
+        goalIcon.setPreserveRatio(true);
+        goalIcon.setOnMouseEntered((MouseEvent event)->{
+            goalIcon.setFitHeight(100);
+            goalIcon.setFitWidth(270);
+        });
+        goalIcon.setOnMouseExited((MouseEvent event)->{
+            goalIcon.setFitHeight(80);
+            goalIcon.setFitWidth(250);
+        });
+
+        goalIcon.setOnMouseClicked((MouseEvent event)->{
+            try {
+                String urlString="www.goal.com/en/";
+                Process p = Runtime.getRuntime().exec("rundll32"+" url.dll,FileProtocolHandler"+" http://"+urlString);
+            }
+            catch (MalformedURLException e) {
+                // new URL() failed
+                // ...
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+
+        Image sky = new Image("skysportslogo.jpg");
+        ImageView skyIcon = new ImageView(sky);
+        skyIcon.setFitHeight(80);
+        skyIcon.setFitWidth(250);
+        skyIcon.setLayoutX(700);
+        skyIcon.setLayoutY(80);
+        skyIcon.setPickOnBounds(true);
+        skyIcon.setPreserveRatio(true);
+        skyIcon.setOnMouseEntered((MouseEvent event)->{
+            skyIcon.setFitHeight(100);
+            skyIcon.setFitWidth(270);
+        });
+        skyIcon.setOnMouseExited((MouseEvent event)->{
+            skyIcon.setFitHeight(80);
+            skyIcon.setFitWidth(250);
+        });
+
+        skyIcon.setOnMouseClicked((MouseEvent event)->{
+            try {
+                String urlString="www.skysports.com/";
+                Process p = Runtime.getRuntime().exec("rundll32"+" url.dll,FileProtocolHandler"+" http://"+urlString);
+            }
+            catch (MalformedURLException e) {
+                // new URL() failed
+                // ...
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+        newsPane.getChildren().addAll(bigNewsIcon, marcaIcon, goalIcon, skyIcon, neymarNewsIcon, zidaneNewsIcon, kaneNewsIcon);
+        newsTab.setContent(newsPane);
+
+        tabs.getTabs().addAll(homeTab, profileTab, newsTab);
+        box.getChildren().addAll(topPane, tabs);
+        Scene scene = new Scene(box);
+        stage.setScene(scene);
+        stage.setTitle(name);
+        stage.show();
+        stage.getIcons().add(new Image("icon.png"));
+        stage.setOnCloseRequest((WindowEvent t) -> {
+            Platform.exit();
+            System.exit(0);
+        });
+    }
+
     public static TextField textfieldCreatorNew(String name, double x, double y, double h, double w) {
         TextField temp = new TextField();
         temp.setPromptText(name);
+        temp.setLayoutX(x);
+        temp.setLayoutY(y);
+        temp.setPrefHeight(h);
+        temp.setPrefWidth(w);
+        return temp;
+    }
+
+    public static DatePicker datePickerCreator(double x, double y, double h, double w) {
+        DatePicker temp = new DatePicker();
         temp.setLayoutX(x);
         temp.setLayoutY(y);
         temp.setPrefHeight(h);
@@ -3257,15 +3859,6 @@ public class Main extends Application {
 
         return res;
     }
-
-    public static DatePicker datePickerCreator(double x, double y, double h, double w) {
-        DatePicker temp = new DatePicker();
-        temp.setLayoutX(x);
-        temp.setLayoutY(y);
-        temp.setPrefHeight(h);
-        temp.setPrefWidth(w);
-        return temp;
-    }
 }
 
 
@@ -3275,3 +3868,4 @@ public class Main extends Application {
 //scout id 1        scarlett
 //board member 1    solomon
 //president 28       brian
+//member            lucian
