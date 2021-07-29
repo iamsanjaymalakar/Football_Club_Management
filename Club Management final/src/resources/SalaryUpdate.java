@@ -77,4 +77,3 @@ public class SalaryUpdate {
         this.date.set(date);
     }
 }
-
